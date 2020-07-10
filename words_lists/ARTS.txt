@@ -1,0 +1,8 @@
+poetry
+art
+shakespeare
+dance
+literature
+novel
+symphony
+drama
