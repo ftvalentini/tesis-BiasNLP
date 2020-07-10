@@ -50,3 +50,14 @@ with open(CORPUS, "r", encoding="utf-8") as f:
         if not doc:
             break
         i += 1
+
+#%% print results
+with open("results_pmibydoc.md", "w") as f:
+    print(
+        f'with {CORPUS} :\n'
+        ,f'\n### Most biased {TARGET_A}/{TARGET_B}/{CONTEXT} \n'
+        ,most_biased
+        ,f'\n### Most unbiased {TARGET_A}/{TARGET_B}/{CONTEXT} \n'
+        ,least_biased
+        ,file = f
+    )

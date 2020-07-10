@@ -32,13 +32,6 @@ pmi_a = pmi(cooc_dict, words_a, words_c, str2count, alpha=1)
 pmi_b = pmi(cooc_dict, words_b, words_c, str2count, alpha=1)
 odds_ratio = bias_odds_ratio(
     cooc_dict, words_a, words_b, words_c, str2count, ci_level=.95)
-print(
-    f'pmi({TARGET_A},{CONTEXT}) = {pmi_a}\n'
-    f'pmi({TARGET_B},{CONTEXT}) = {pmi_b}\n'
-    f'diff_pmi = {pmi_a - pmi_b}\n'
-    f'logOddsRatio = {np.log(odds_ratio[0])}\n'
-    f'CI-logOddsRatio = {np.log(odds_ratio[1])} -- {np.log(odds_ratio[2])}\n'
-)
 # logOddsRatio = 0 --> no bias
 # logOddsRatio > 0 --> bias A
 # logOddsRatio < 0 --> bias B
@@ -50,14 +43,25 @@ count_a_c = sum([cooc_dict.get((word, context), 0) \
                             for word in words_a for context in words_c])
 count_b_c = sum([cooc_dict.get((word, context), 0) \
                             for word in words_b for context in words_c])
-print(
-    '--- word counts ---\n'
-    f'{TARGET_A}: {count_a}\n'
-    f'{TARGET_B}: {count_b}\n'
-    f'{TARGET_A} & {CONTEXT}: {count_a_c}\n'
-    f'{TARGET_B} & {CONTEXT}: {count_b_c}\n'
-)
 # coocurrences A - C
 [(word, context, cooc_dict.get((word,context),0)) for word in words_a for context in words_c]
 # coocurrences B - C
 [(word, context, cooc_dict.get((word,context),0)) for word in words_b for context in words_c]
+
+#%% print results
+with open("results_oddsratio.md", "w") as f:
+    print(
+        f'with {VOCAB_FILE} :\n'
+        ,'\n### PMI and Odds Ratio \n'
+        ,f'- pmi({TARGET_A},{CONTEXT}) = {pmi_a}\n'
+        ,f'- pmi({TARGET_B},{CONTEXT}) = {pmi_b}\n'
+        ,f'- diff_pmi = {pmi_a - pmi_b}\n'
+        ,f'- logOddsRatio = {np.log(odds_ratio[0])}\n'
+        ,f'- CI-logOddsRatio = {np.log(odds_ratio[1])} -- {np.log(odds_ratio[2])}\n'
+        ,'\n### Word counts \n'
+        ,f'- {TARGET_A}: {count_a}\n'
+        ,f'- {TARGET_B}: {count_b}\n'
+        ,f'- {TARGET_A} & {CONTEXT}: {count_a_c}\n'
+        ,f'- {TARGET_B} & {CONTEXT}: {count_b_c}\n'
+        ,file = f
+    )
