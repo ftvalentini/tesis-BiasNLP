@@ -49,7 +49,7 @@ count_b_c = sum([cooc_dict.get((word, context), 0) \
 [(word, context, cooc_dict.get((word,context),0)) for word in words_b for context in words_c]
 
 #%% print results
-with open("results_oddsratio.md", "w") as f:
+with open("results/oddsratio.md", "w") as f:
     print(
         f'with {VOCAB_FILE} :\n'
         ,'\n### PMI and Odds Ratio \n'

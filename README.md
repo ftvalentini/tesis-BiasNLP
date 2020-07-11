@@ -10,7 +10,7 @@ STEPS:
 TODO:
 - cooccurence Glove y `utils.coocurrence.create_cooc_dict()` coinciden solo si `VOCAB_MIN_COUNT=1` -> revisar esto
 - check que cooc dict siempre tenga (i,j) y (j,i)
-- hacer bootrstap interval de Garg
+- validar bootrstap interval de Garg
 
 Notes:
 - en step 1 usé Google Colab (ver https://colab.research.google.com/drive/143Me55jclH1DFEzUsFnHB0liq1fsuszr?authuser=1 con rkf.valentini@gmail.com)

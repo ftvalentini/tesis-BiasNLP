@@ -25,13 +25,15 @@ word_list = words_a + words_b + words_c
 embeddings = get_embeddings(word_list, vocab_file=VOCAB_FILE, embed_file=EMBED_FILE)
 
 #%% Bias with relative norm distance
-bias_garg = bias_relative_norm_distance(embeddings, words_a, words_b, words_c)
+bias_garg = bias_relative_norm_distance(
+                embeddings, words_a, words_b, words_c, ci_bootstrap_iters=200)
 
 #%% print results
-with open("results_biasgarg.md", "w") as f:
+with open("results/biasgarg.md", "w") as f:
     print(
         f'with {VOCAB_FILE} :\n'
         ,'\n### Bias by relative norm distance (Garg et al 2018) \n'
-        ,f'- bias({TARGET_A},{TARGET_B},{CONTEXT}) = {bias_garg}\n'
+        ,f'- bias({TARGET_A},{TARGET_B},{CONTEXT}) = {bias_garg[0]}\n'
+        ,f'- CI SE-bootrstap = {bias_garg[1]} -- {bias_garg[2]}\n'
         ,file = f
     )

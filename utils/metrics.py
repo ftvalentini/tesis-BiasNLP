@@ -72,7 +72,8 @@ def bias_odds_ratio(cooc_dict, words_target_a, words_target_b, words_context,
 
 
 def bias_relative_norm_distance(vector_dict
-                                ,words_target_a, words_target_b, words_context):
+                                ,words_target_a, words_target_b, words_context
+                                ,ci_bootstrap_iters=None):
     """Return relative_norm_distance as bias metric between A/B wrt to Context
     (Garg et al 2018 Eq 3)
     """
@@ -91,6 +92,16 @@ def bias_relative_norm_distance(vector_dict
     # relative norm distance: suma de las diferencias de normdiffs target para cada C
     # rel_norm_distance > 0: mas lejos de B que de A --> bias "a favor de" A
     rel_norm_distance = np.sum(normdiffs_b - normdiffs_a)
+    if ci_bootstrap_iters:
+        diffs = normdiffs_b - normdiffs_a
+        rel_norm_distances = []
+        np.random.seed(123)
+        for b in range(ci_bootstrap_iters):
+            indices = np.random.choice(len(diffs), len(diffs), replace=True)
+            rel_norm_distances.append(np.sum(diffs[indices]))
+        sd = np.std(rel_norm_distances)
+        lower, upper = rel_norm_distance - sd, rel_norm_distance + sd
+        return rel_norm_distance, lower, upper
     return rel_norm_distance
 
 

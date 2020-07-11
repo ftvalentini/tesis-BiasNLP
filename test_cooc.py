@@ -47,7 +47,7 @@ for word1 in word_list:
             different_cooc.append(f'{k}: glove: {cooc_glove} -- utils: {cooc_utils}')
 
 #%% print results
-with open("results_comparecooc.md", "w") as f:
+with open("results/comparecooc.md", "w") as f:
     print(
         f'with {VOCAB_FILE} and {COOC_FILE}\n'
         ,'\n\n### Word counts'
