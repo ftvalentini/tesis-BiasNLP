@@ -71,6 +71,29 @@ def bias_odds_ratio(cooc_dict, words_target_a, words_target_b, words_context,
     return odds_ratio
 
 
+def bias_relative_norm_distance(vector_dict
+                                ,words_target_a, words_target_b, words_context):
+    """Return relative_norm_distance as bias metric between A/B wrt to Context
+    (Garg et al 2018 Eq 3)
+    """
+    # TODO: handlear words out of vocab
+    # normalize vecs to norm 1
+    for word, vec in vector_dict.items():
+        vector_dict[word] = vec / np.linalg.norm(vec)
+    # average target vectors
+    avg_a = np.mean(np.array([vector_dict[w] for w in words_target_a]), axis=0)
+    avg_b = np.mean(np.array([vector_dict[w] for w in words_target_b]), axis=0)
+    # array context vectors (dim x n_words)
+    vectors_c = np.array([vector_dict[w] for w in words_context]).transpose()
+    # para cada columna de C: substract avg_target y norma 2
+    normdiffs_a = np.linalg.norm(np.subtract(vectors_c, avg_a[:,np.newaxis]), axis=0)
+    normdiffs_b = np.linalg.norm(np.subtract(vectors_c, avg_b[:,np.newaxis]), axis=0)
+    # relative norm distance: suma de las diferencias de normdiffs target para cada C
+    # rel_norm_distance > 0: mas lejos de B que de A --> bias "a favor de" A
+    rel_norm_distance = np.sum(normdiffs_b - normdiffs_a)
+    return rel_norm_distance
+
+
 def bias_ppmi_bydoc(words_target_a, words_target_b, words_context,
                     alpha=.75, window_size=8,
                     corpus="corpora/simplewikiselect.txt",
