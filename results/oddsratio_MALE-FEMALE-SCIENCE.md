@@ -1,0 +1,15 @@
+with embeddings/vocab-C0-V20.txt :
+ 
+### PMI and Odds Ratio 
+ - pmi(MALE,SCIENCE) = 2.650342012439018
+ - pmi(FEMALE,SCIENCE) = 2.170475720535735
+ - diff_pmi = 0.4798662919032832
+ - logOddsRatio = 0.48328604372824857
+ - CI-logOddsRatio = 0.38940756722264497 -- 0.5771645202338522
+ 
+### Word counts 
+ - MALE: 248432
+ - FEMALE: 99224
+ - MALE & SCIENCE: 2213.0
+ - FEMALE & SCIENCE: 547.0
+

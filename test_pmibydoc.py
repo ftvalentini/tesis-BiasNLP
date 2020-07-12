@@ -52,7 +52,7 @@ with open(CORPUS, "r", encoding="utf-8") as f:
         i += 1
 
 #%% print results
-with open("results/pmibydoc.md", "w") as f:
+with open(f'results/pmibydoc_{TARGET_A}-{TARGET_B}-{CONTEXT}.md', "w") as f:
     print(
         f'with {CORPUS} :\n'
         ,f'\n### Most biased {TARGET_A}/{TARGET_B}/{CONTEXT} \n'

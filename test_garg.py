@@ -29,7 +29,7 @@ bias_garg = bias_relative_norm_distance(
                 embeddings, words_a, words_b, words_c, ci_bootstrap_iters=200)
 
 #%% print results
-with open("results/biasgarg.md", "w") as f:
+with open(f'results/biasgarg_{TARGET_A}-{TARGET_B}-{CONTEXT}.md', "w") as f:
     print(
         f'with {VOCAB_FILE} :\n'
         ,'\n### Bias by relative norm distance (Garg et al 2018) \n'

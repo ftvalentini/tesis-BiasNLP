@@ -49,13 +49,13 @@ for word1 in word_list:
 #%% print results
 with open("results/comparecooc.md", "w") as f:
     print(
-        f'with {VOCAB_FILE} and {COOC_FILE}\n'
-        ,'\n\n### Word counts'
+        f'with {VOCAB_FILE} and {COOC_FILE}'
+        ,'\n### Word counts'
         ,f'Glove: {len(word_list_glove)} -- utils {len(word_list)}'
         ,f'words in common: {len(set(word_list) & set(word_list_glove))}'
-        ,'\n\n### Word counts with difference'
+        ,'\n### Word counts with difference'
         ,*different_count
-        ,'\n\n### Coocs. with difference'
+        ,'\n### Coocs. with difference'
         ,*different_cooc
         ,sep='\n'
         ,file = f
