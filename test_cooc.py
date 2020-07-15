@@ -5,10 +5,11 @@ import pandas as pd
 from utils.corpora import load_vocab
 from utils.coocurrence import build_cooc_dict, create_cooc_dict
 
-#%% Corpus parameters
-CORPUS = "corpora/test.txt"
-VOCAB_FILE = "embeddings/vocab-C1-V1.txt" # wikipedia dump = C0
-COOC_FILE = 'embeddings/cooc-C1-V1-W8-D0.bin' # wikipedia dump = C0
+#%% Corpus parameters (must run scripts/01-cooc.sh scripts/cooc.config)
+CORPUS = "corpora/test_short.txt"
+CORPUS_IDX = 2 # segun 01-cooc.sh
+WINDOW_SIZE = 1
+VOCAB_MIN_COUNT = 4
 
 #%% Load raw corpus
 with open(CORPUS, "r", encoding="utf-8") as f:
@@ -19,24 +20,27 @@ for linea in corpus:
         all_words.append(word)
 
 #%% Load corpus vocab dicts
+VOCAB_FILE = f'embeddings/vocab-C{CORPUS_IDX}-V{VOCAB_MIN_COUNT}.txt'
 str2idx, idx2str, str2count = load_vocab(vocab_file=VOCAB_FILE)
 
 #%% unique words
-word_list = list(set(all_words))
+word_counts = pd.Series(all_words).value_counts()
+word_counts = word_counts[word_counts >= VOCAB_MIN_COUNT]
+word_list = word_counts.index.to_list()
 word_list_glove = list(str2idx.keys())
 
 #%% word counts
-word_counts = pd.Series(all_words).value_counts()
 different_count = list()
-for word in word_list:
+for word in word_list_glove:
     count_glove = str2count.get(word, 0)
     count_utils = word_counts[word]
     if count_glove != count_utils:
         different_count.append(f'{word}: glove: {count_glove} -- utils: {count_utils}')
 
 #%% cooc counts
-cooc_dict = create_cooc_dict(" ".join(all_words), word_list, window_size=8)
-cooc_dict_glove = build_cooc_dict(word_list, str2idx, cooc_file=COOC_FILE)
+COOC_FILE = f'embeddings/cooc-C{CORPUS_IDX}-V{VOCAB_MIN_COUNT}-W{WINDOW_SIZE}-D0.bin'
+cooc_dict = create_cooc_dict(" ".join(all_words), word_list_glove, window_size=WINDOW_SIZE)
+cooc_dict_glove = build_cooc_dict(word_list_glove, str2idx, cooc_file=COOC_FILE)
 different_cooc = list()
 for word1 in word_list:
     for word2 in word_list:

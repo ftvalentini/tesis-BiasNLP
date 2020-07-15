@@ -65,8 +65,8 @@ def create_cooc_dict(document, word_list, window_size=8):
             window_end = min(i + window_size + 1, len(words_doc))
             for j in range(window_start, window_end):
                 if (words_doc[j] in word_list) & (i != j):
-                    cooc_dict.setdefault((word_i, words_doc[j]), 0)
-                    cooc_dict[(word_i, words_doc[j])] += 1
+                    cooc_dict[(word_i, words_doc[j])] = \
+                        cooc_dict.get((word_i, words_doc[j]), 0) + 1
     return cooc_dict
 
 

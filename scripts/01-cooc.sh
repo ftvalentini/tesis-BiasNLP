@@ -14,6 +14,7 @@ VERBOSE=${6:-"2"}
 CORPORA=(
 $CORPORA_DIR/simplewikiselect.txt
 $CORPORA_DIR/test.txt
+$CORPORA_DIR/test_short.txt
 # $CORPORA_DIR/nytselect.txt
 )
 
