@@ -29,6 +29,17 @@ def pmi(cooc_dict, words_target, words_context, str2count, alpha=.75):
     return pmi
 
 
+def bias_pmi(cooc_dict, words_target_a, words_target_b, words_context, str2count,
+            alpha=1.0):
+    """ Return PMI(A,C)-PMI(A,C) between 2 sets of target words (A B) and a \
+    set of context words.
+    """
+    pmi_a = pmi(cooc_dict, words_target_a, words_context, str2count, alpha=alpha)
+    pmi_b = pmi(cooc_dict, words_target_b, words_context, str2count, alpha=alpha)
+    bias = pmi_a - pmi_b
+    return bias
+
+
 def bias_odds_ratio(cooc_dict, words_target_a, words_target_b, words_context,
                     str2count, ci_level=None):
     """ Return bias OddsRatio A/B between 2 sets of target words (A B) and a set of \
@@ -105,31 +116,38 @@ def bias_relative_norm_distance(vector_dict
     return rel_norm_distance
 
 
-def bias_ppmi_bydoc(words_target_a, words_target_b, words_context,
-                    alpha=.75, window_size=8,
-                    corpus="corpora/simplewikiselect.txt",
-                    corpus_metadata='corpora/simplewikiselect.meta.json'
-                    ):
+def differential_bias_bydoc(words_target_a, words_target_b, words_context,
+                            cooc_dict, str2count,
+                            metric="ppmi",
+                            alpha=1.0, window_size=8,
+                            corpus="corpora/simplewikiselect.txt",
+                            corpus_metadata='corpora/simplewikiselect.meta.json'
+                            ):
     """Return pd.DataFrame with one row by doc and columns:
         - id
         - line of corpus
-        - name
-        - difference PPMI(A,C) - PPMI(B,C)
-            - Si no hay Cooc target-context --> no se calcula
-            - Si solo hay Cooc targetA-context --> return PPMI(A,C)
-            - Si solo hay Cooc targetB-context --> return PPMI(B,C)
-            - Si hay ambas Cooc --> return difference
-        TODO: ppmi en realidad nunca puede ser 0...
+        - name of document
+        - differential bias (bias global - bias sin el texto)
+    Param:
+        - metric: "pmi", "odds_ratio"
     """
-    word_list = words_target_a + words_target_b + words_context
+    # computa bias global
+    def bias_total(cooc_dict, str2count, metric=metric):
+        if metric == "pmi":
+            return bias_pmi(cooc_dict, words_target_a, words_target_b \
+                            , words_context, str2count, alpha=alpha)
+        elif metric == "odds_ratio":
+            return bias_odds_ratio(cooc_dict, words_target_a, words_target_b \
+                            , words_context, str2count)
+    bias_global = bias_total(cooc_dict, str2count, metric)
     # sets of words to test intersection with docs
+    words_list = words_target_a + words_target_b + words_context
     words_target = set(words_target_a) | set(words_target_b)
     # read docs metadata to retrieve index, name
     with open(corpus_metadata, "r", encoding="utf-8") as f:
         docs_metadata = json.load(f)['index']
-    # for each doc: read metadata + read doc + cooc_matrix + bias
-    result = {'id': [], 'line': [], 'name': [],
-              'diff_ppmi': []}  # init results dict
+    # for each doc: read metadata + read doc + cooc_matrix + differential bias
+    result = {'id': [], 'line': [], 'name': [], 'diff_bias': []}  # init results dict
     i = -1  # init doc counter
     with open(corpus, "r", encoding="utf-8") as f:
         while True:
@@ -139,37 +157,27 @@ def bias_ppmi_bydoc(words_target_a, words_target_b, words_context,
             if not doc:
                 break
             words_doc = doc.split()
-            # si no hay words context --> not parse:
-            if not bool(set(words_doc) & set(words_context)):
-                continue
             # si no hay words target --> not parse:
-            elif not bool(set(words_doc) & words_target):
+            if not bool(set(words_doc) & words_target):
                 continue
-            # si hay words target y context --> parse:
             doc_metadata = [d for d in docs_metadata if d['line'] == i][0]
-            cooc_dict = create_cooc_dict(
-                doc, word_list, window_size=window_size)
-            words_target_cooc = [k[0] for k in cooc_dict.keys()
-                                 if k[0] in words_target and k[1] in words_context]
-            # si no hay coocurrencia target-context --> no calcular ppmi:
-            if not words_target_cooc:
-                continue
-            pmi_a = 0 # pmi default
-            pmi_b = 0 # pmi default
-            str2count = pd.value_counts(words_doc).to_dict()
-            # si hay coocurrencia targetA-context: get ppmi_a
-            if bool(set(words_target_a) & set(words_target_cooc)):
-                pmi_a = pmi(cooc_dict, words_target_a,
-                            words_context, str2count, alpha=alpha)
-            # si hay coocurrencia targetB-context: get ppmi_b
-            if bool(set(words_target_b) & set(words_target_cooc)):
-                pmi_b = pmi(cooc_dict, words_target_b,
-                            words_context, str2count, alpha=alpha)
-            # Bias: diff_ppmi
-            diff_ppmi = max(0, pmi_a) - max(0, pmi_b)
+            # compute cooc_dict t str2count of document
+            cooc_dict_i = create_cooc_dict(
+                doc, words_list, window_size=window_size)
+            str2count_i = pd.value_counts(words_doc).to_dict()
+            # update cooc global y str2count global
+            cooc_dict_new = \
+                    {k: v - cooc_dict_i.get(k, 0) for k, v in cooc_dict.items()}
+            str2count_new = \
+                    {w: str2count.get(w, 0) - str2count_i.get(w, 0) \
+                                                            for w in words_list}
+            # compute new bias
+            bias_global_new = bias_total(cooc_dict_new, str2count_new, metric)
+            # Differential bias
+            diff_bias = bias_global - bias_global_new
             # make results DataFrame
             result['id'].append(doc_metadata['id'])
             result['line'].append(i)
             result['name'].append(doc_metadata['name'])
-            result['diff_ppmi'].append(diff_ppmi)
+            result['diff_bias'].append(diff_bias)
     return pd.DataFrame(result)
