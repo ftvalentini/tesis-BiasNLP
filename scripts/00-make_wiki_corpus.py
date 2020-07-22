@@ -7,7 +7,8 @@ from gensim.corpora.wikicorpus import WikiCorpus
 base_dir = ""
 # wiki_filename = 'simplewiki-20200620-pages-articles-multistream.xml.bz2'
 wiki_filename = 'enwiki-20200701-pages-articles-multistream.xml.bz2'
-wiki_path = path.join(base_dir, 'corpora', wiki_filename)
+# wiki_path = path.join(base_dir, 'corpora', wiki_filename)
+wiki_path = '/home/Fran/bucket/corpora/' + wiki_filename
 # outname = path.join(base_dir, 'corpora', 'simplewikiselect')
 outname = path.join(base_dir, 'corpora', 'enwikiselect')
 
