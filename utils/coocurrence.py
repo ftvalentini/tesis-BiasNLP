@@ -9,54 +9,49 @@ class CREC(Structure):
                 ('value', c_double)]
 
 
-def build_cooc_dict(word_list, str2idx,
+def build_cooc_dict(words_target, words_context, str2idx,
                     cooc_file='embeddings/cooc-C0-V20-W8-D0.bin'):
     """
-    Build coocurrence matrix for word_list from data in binary glove file \
-    and str2idx built with glove vocab
+    Build coocurrence matrix for words_target and words_context from data in \
+    binary glove file and str2idx built with glove vocab
     Order of column/rows is order of list
     """
-    words_outof_vocab = [word for word in word_list if word not in str2idx]
+    words_outof_vocab = [word for word in words_target + words_context \
+                                                        if word not in str2idx]
     if words_outof_vocab:
-        raise KeyError(f'{", ".join(words_outof_vocab)} \nNOT IN VOCAB')
-    # size of data in bytes
-    size_crec = sizeof(CREC)
-    # init matrix or dict
-    # cooc_mat = np.full((len(word_list), len(word_list)), 0)
-    cooc_mat = dict()
-    # indices to insert data in matrix
-    # idx2row = {str2idx[j]: i for i, j in enumerate(word_list)}
-    idx2str = {str2idx[word]: word for word in word_list}
+        print(f'{", ".join(words_outof_vocab)} \nNOT IN VOCAB')
+    idx2str = {str2idx[word]: word for word in words_target + words_context}
     # words indices sorted from most frequent to less
-    indices = sorted([str2idx[word] for word in word_list])
-    # open bin file
+    target_indices = sorted([str2idx[word] for word in words_target])
+    context_indices = sorted([str2idx[word] for word in words_context])
+    cooc_dict = dict() # init dict
+    size_crec = sizeof(CREC) # crec: structura de coocucrrencia en Glove
+    # open bin file sorted by idx1
     with open(cooc_file, 'rb') as f:
-        # binary file is sorted by idx1
-        # --> we update current_idx each time we finished search of idx1
+        # --> we update current_idx each time we finish search of idx1
         cr = CREC()
         k = 0
-        current_idx = indices[0]
+        current_idx = target_indices[0]
         # read and overwrite into cr while there is data
         while (f.readinto(cr) == size_crec):
-            if cr.idx1 in indices:
-                if cr.idx2 in indices:
-                    # cooc_mat[idx2row[cr.idx1], idx2row[cr.idx2]] = cr.value
-                    cooc_mat[(idx2str[cr.idx1], idx2str[cr.idx2])] = cr.value
-                # if new idx1 is higher than previous and is target word --> update
+            if cr.idx1 in target_indices:
+                if cr.idx2 in context_indices:
+                    cooc_dict[(idx2str[cr.idx1], idx2str[cr.idx2])] = cr.value
+                    cooc_dict[(idx2str[cr.idx2], idx2str[cr.idx1])] = cr.value
+                # if new idx1 and is target is higher than previous --> update
                 if cr.idx1 > current_idx:
                     k += 1
-                    current_idx = indices[k]
-            # stop if idx1 is higher than highest search idx
-            if cr.idx1 > indices[len(indices) - 1]:
+                    current_idx = target_indices[k]
+            # stop if idx1 is higher than highest target idx
+            if cr.idx1 > target_indices[len(target_indices) - 1]:
                 break
-    return cooc_mat
+    return cooc_dict
 
 
 def create_cooc_dict(document, word_list, window_size=8):
     """ Create coocurrence dictionary (sparse matrix) from a document for word_list
+    It assumes data has no punctuation
     """
-    # sabemos que simplewikiselect no tiene puntuacion
-    # --> ver gensim.corpora.wikicorpus.WikiCorpus.get_texts()
     cooc_dict = {}
     words_doc = document.split()
     for i, word_i in enumerate(words_doc):

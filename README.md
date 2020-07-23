@@ -7,13 +7,21 @@ STEPS:
 3. `scripts/01-embed.sh scripts/glove.config`: trains GloVe and saves them in .bin. Set `DISTANCE_WEIGHTING=1` in .config so that cooc. counts are normalized as done in vanilla GloVe.
 4. run some tests in `/tests` and print results to some `.md`
 
-TODO:
+**TODO**
+- Las coocs de glove para una palabra no suman la frecuencia (ver Notes) --> ¿como calculamos entonces PMI y OddsRatio? Como hacemos la matriz de cooc?
+  - Si calculamos PMI con
+    - numerador: prob condicional = (todas las cooc (c,t) en window) / (todas las posibles cooc en window)
+    - denominador: frec context / frec total vocab
+    NO SIRVE porque la prob del numerador da muy baja
+    ENTONCES parece que la cooc de glove no sirve --> necesitamos cooc matrix que solo sume cuando context está en la ventana pero no la cantidad de veces que aparece 
 - check que cooc dict siempre tenga (i,j) y (j,i)
-- validar bootrstap interval de Garg
-- 'chef' not in vocab --> armar dataset temporal de enwiki con https://archive.org/search.php?query=subject%3A%22enwiki%22+AND+subject%3A%22data+dumps%22+AND+collection%3A%22wikimediadownloads%22&page=2
+- handlear correctamente las words out of vocab (prints en las funciones)
+- validar bootstrap interval de Garg
+
 
 Notes:
 - Cooc. de GloVe solo considera words in vocab (>VOCAB_MIN_COUNT) como parte de la ventana -- es decir si window_size=2 y una palabra contexto está a 5 palabras de distancia de la target pero ninguna de estas está en el vocab, entonces es como si la distancia fuera 1 y entonces está dentro de la ventana. Entonces cooccurence Glove y `utils.coocurrence.create_cooc_dict()` coinciden solo si `VOCAB_MIN_COUNT=1`.
+- Cooc. de Glove cuenta todas las apariciones del contexto en la ventana (ej. si en una ventana el contexto está tres veces, se cuenta las 3) --> entonces la suma de las coocurrencias para una palabra con el resto no es igual a la frecuencia de la palabra
 - en step 1 usé Google Colab (ver https://colab.research.google.com/drive/143Me55jclH1DFEzUsFnHB0liq1fsuszr?authuser=1 con rkf.valentini@gmail.com)
 - Glove pondera coocurrencias por distancia (+ distancia en la ventana --> - coocucrrencia) -- esto se desactiva con `DISTANCE_WEIGHTING=0`
 - cooc.sh deletes stuff from embed.sh related to vectors and sets DISTANCE_WEIGHTING to 0.
