@@ -2,8 +2,8 @@ STEPS:
 
 0. `make -C "GloVe"`: run once and for all to build GloVe from source so that it can be executed
 
-1. `python scripts/00-make_wiki_corpus.py`: makes txt corpus out of wikipedia dump `.bz` file in `/corpora` -- must determine `MAX_WC` `ARTICLE_MIN_WC` `ARTICLE_MAX_WC` in script. Outputs a .txt corpus, a .meta.txt with corpus info and .meta.json with documents' info.
-2. `scripts/01-cooc.sh scripts/cooc.config`: builds .bin with coocurrence counts and .txt with vocabulary. Must specify `DISTANCE_WEIGHTING=0` in .config so that cooc. counts are raw.
+1. `python scripts/00-make_wiki_corpus.py <input_wiki_file> <output_file>`: makes txt corpus out of wikipedia dump `.bz` file in `/corpora` -- must determine `MAX_WC` `ARTICLE_MIN_WC` `ARTICLE_MAX_WC` in script. Outputs a .txt corpus, a .meta.txt with corpus info and .meta.json with documents' info. `<output_file>` must not have extension.
+2. `scripts/01-cooc.sh scripts/cooc.config <corpus_dir> <results_dir>`: builds .bin with coocurrence counts and .txt with vocabulary. Must specify `DISTANCE_WEIGHTING=0` in .config so that cooc. counts are raw. If `VOCAB_MIN_COUNT=1` then all words are part of window. 
 3. `scripts/01-embed.sh scripts/glove.config`: trains GloVe and saves them in .bin. Set `DISTANCE_WEIGHTING=1` in .config so that cooc. counts are normalized as done in vanilla GloVe.
 4. run some tests in `/tests` and print results to some `.md`
 
@@ -13,7 +13,7 @@ STEPS:
     - numerador: prob condicional = (todas las cooc (c,t) en window) / (todas las posibles cooc en window)
     - denominador: frec context / frec total vocab
     NO SIRVE porque la prob del numerador da muy baja
-    ENTONCES parece que la cooc de glove no sirve --> necesitamos cooc matrix que solo sume cuando context está en la ventana pero no la cantidad de veces que aparece 
+    ENTONCES parece que la cooc de glove no sirve --> necesitamos cooc matrix que solo sume cuando context está en la ventana pero no la cantidad de veces que aparece
 - check que cooc dict siempre tenga (i,j) y (j,i)
 - handlear correctamente las words out of vocab (prints en las funciones)
 - validar bootstrap interval de Garg
