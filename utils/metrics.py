@@ -6,78 +6,68 @@ from scipy.stats import norm
 from utils.coocurrence import create_cooc_dict
 
 
-def pmi(cooc_dict, words_target, words_context, str2count, window_size, alpha=1.0):
+def pmi(cooc_dict, words_target, words_context, str2count, alpha=1.0):
     """Return PPMI of words_target, words_context using cooc dict and str2count
     Asume que cooc_dict siempre tiene (i,j) y (j,i)
-    Param:
-        - window_size: window_size used to build cooc_dict (it is used to \
-        compute conditional prob of ocurrence in window)
     """
     # words_outof_vocab = [word for word in words_target + words_context
     #                         if word not in str2count]
     # if words_outof_vocab:
     #     return f'{", ".join(words_outof_vocab)} : not in vocab'
-    # probabilidad marginal del contexto
+    # contexto: probabilidad marginal
     count_context_alpha = sum(
         [str2count.get(w, 0)**alpha for w in words_context])
     count_total_alpha = sum([v**alpha for v in str2count.values()])
     prob_context_alpha = count_context_alpha / count_total_alpha
-    # probabilidad condicional de coocurrencia en la ventana
-    count_context_window = 0
+    # contexto: probabilidad condicional de coocurrencia con target
+    count_context_con_target = 0
     for target in words_target:
         for context in words_context:
-            count_context_window += cooc_dict.get((target, context), 0)
-    count_window_total = sum(
-        [str2count.get(w, 0)*window_size*2 for w in words_target])
-    prob_context_window = count_context_window / count_window_total
-    pmi = np.log(prob_context_window / prob_context_alpha)
+            count_context_con_target += cooc_dict.get((target, context), 0)
+    count_target_total = sum([str2count.get(w, 0) for w in words_target])
+    prob_context_con_target = count_context_con_target / count_target_total
+    pmi = np.log(prob_context_con_target / prob_context_alpha)
     return pmi
 
 
 def bias_pmi(cooc_dict, words_target_a, words_target_b, words_context, str2count,
-            window_size, alpha=1.0):
+            alpha=1.0):
     """ Return PMI(A,C)-PMI(A,C) between 2 sets of target words (A B) and a \
     set of context words.
     """
-    pmi_a = pmi(cooc_dict, words_target_a, words_context, str2count, window_size,
-                alpha=alpha)
-    pmi_b = pmi(cooc_dict, words_target_b, words_context, str2count, window_size,
-                alpha=alpha)
+    pmi_a = pmi(cooc_dict, words_target_a, words_context, str2count, alpha=alpha)
+    pmi_b = pmi(cooc_dict, words_target_b, words_context, str2count, alpha=alpha)
     bias = pmi_a - pmi_b
     return bias
 
 
 def bias_odds_ratio(cooc_dict, words_target_a, words_target_b, words_context,
-                    str2count, window_size, ci_level=None):
+                    str2count, ci_level=None):
     """ Return bias OddsRatio A/B between 2 sets of target words (A B) and a set of \
     context words.
     If ci_level: return confidence interval at ci_level (oddsr, lower, upper)
-    Param:
-        - window_size: window_size used to build cooc_dict (it is used to \
-        compute counts of context withou)
     """
     def odds_ratio_counts(words_target):
         count_target_context = 0
         for target in words_target:
             for context in words_context:
                 count_target_context += cooc_dict.get((target, context), 0)
-        count_window_total = sum(
-                [str2count.get(w, 0)*window_size*2 for w in words_target])
-        count_target_notcontext = count_window_total - count_target_context
+        count_target_total = sum([str2count.get(w, 0) for w in words_target])
+        count_target_notcontext = count_target_total - count_target_context
         result = {'context': count_target_context,
                   'notcontext': count_target_notcontext}
         return result
     counts_a = odds_ratio_counts(words_target_a)
     counts_b = odds_ratio_counts(words_target_b)
     # ODDS ratio
-    if (odds_a == 0) & (odds_b == 0):
+    if (counts_a['context'] == 0) & (counts_a['context'] == 0):
         odds_ratio = float("nan")
-    elif odds_b == 0:
+    elif counts_b['context'] == 0:
         odds_ratio = float("inf")
-    elif odds_a == 0:
+    elif counts_a['context'] == 0:
         odds_ratio = float("-inf")
     else:
-        odds_ratio = (counts_a['context'] / counts_a['notcontext']) / \
+        odds_ratio = (counts_a['context']/counts_a['notcontext']) / \
             (counts_b['context']/counts_b['notcontext'])
     # ODDS ratio variance and CI
     if ci_level:
@@ -144,10 +134,10 @@ def differential_bias_bydoc(words_target_a, words_target_b, words_context,
     def bias_total(cooc_dict, str2count, metric=metric):
         if metric == "pmi":
             return bias_pmi(cooc_dict, words_target_a, words_target_b \
-                            , words_context, str2count, window_size, alpha=alpha)
+                            , words_context, str2count, alpha=alpha)
         elif metric == "odds_ratio":
             return bias_odds_ratio(cooc_dict, words_target_a, words_target_b \
-                            , words_context, str2count, window_size)
+                            , words_context, str2count)
     bias_global = bias_total(cooc_dict, str2count, metric)
     # sets of words to test intersection with docs
     words_list = words_target_a + words_target_b + words_context

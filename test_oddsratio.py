@@ -1,5 +1,6 @@
 import os
 import numpy as np
+import pandas as pd
 
 from utils.corpora import load_vocab
 from utils.coocurrence import build_cooc_dict
@@ -8,7 +9,6 @@ from utils.metrics import pmi, bias_odds_ratio
 #%% Corpus parameters
 VOCAB_FILE = "embeddings/vocab-C0-V20.txt" # wikipedia dump = C0
 COOC_FILE = 'embeddings/cooc-C0-V20-W8-D0.bin'
-WINDOW_SIZE = 8
 
 #%% Estereotipos parameters
 TARGET_A = 'MALE'
@@ -30,29 +30,8 @@ words_b = words_lists[TARGET_B]
 words_c = words_lists[CONTEXT]
 cooc_dict = build_cooc_dict(words_a + words_b, words_c, str2idx
                             ,cooc_file=COOC_FILE)
-pmi_a = pmi(cooc_dict, words_a, words_c, str2count, WINDOW_SIZE, alpha=1)
-pmi_b = pmi(cooc_dict, words_b, words_c, str2count, WINDOW_SIZE, alpha=1)
-
-# NOTA: los pmi dan negativos porque la prod condicional calculada con los conteos \
-# totales segun glove es muy baja
-# TODO: ver que hacer!!!!
-
-# window_size=8; alpha=1
-# words_target = words_a; words_context = words_c
-#     count_context_alpha = sum(
-#         [str2count.get(w, 0)**alpha for w in words_context])
-#     count_total_alpha = sum([v**alpha for v in str2count.values()])
-#     prob_context_alpha = count_context_alpha / count_total_alpha
-#     # probabilidad condicional de coocurrencia en la ventana
-#     count_context_window = 0
-#     for target in words_target:
-#         for context in words_context:
-#             count_context_window += cooc_dict.get((target, context), 0)
-#     count_window_total = sum(
-#         [str2count.get(w, 0)*window_size*2 for w in words_target])
-#     prob_context_window = count_context_window / count_window_total
-#     pmi = np.log(prob_context_window / prob_context_alpha)
-
+pmi_a = pmi(cooc_dict, words_a, words_c, str2count, alpha=1)
+pmi_b = pmi(cooc_dict, words_b, words_c, str2count, alpha=1)
 odds_ratio = bias_odds_ratio(
     cooc_dict, words_a, words_b, words_c, str2count, ci_level=.95)
 # logOddsRatio = 0 --> no bias
@@ -67,9 +46,15 @@ count_a_c = sum([cooc_dict.get((word, context), 0) \
 count_b_c = sum([cooc_dict.get((word, context), 0) \
                             for word in words_b for context in words_c])
 # coocurrences A - C
-[(word, context, cooc_dict.get((word,context),0)) for word in words_a for context in words_c]
+df_ac = pd.DataFrame(
+            [(word, context, cooc_dict.get((word,context),0)) \
+                                for word in words_a for context in words_c])
 # coocurrences B - C
-[(word, context, cooc_dict.get((word,context),0)) for word in words_b for context in words_c]
+df_bc = pd.DataFrame(
+            [(word, context, cooc_dict.get((word,context),0)) \
+                                for word in words_b for context in words_c])
+# df_ac.sort_values(by=2, ascending=False)
+# df_bc.sort_values(by=2, ascending=False)
 
 #%% print results
 with open(f'results/oddsratio_{TARGET_A}-{TARGET_B}-{CONTEXT}.md', "w") as f:

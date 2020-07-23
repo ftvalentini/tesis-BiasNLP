@@ -6,6 +6,7 @@ from utils.metrics import differential_bias_bydoc
 
 #%% Corpus parameters
 CORPUS = 'corpora/simplewikiselect.txt' # wikipedia dump
+COOC_FILE = 'embeddings/cooc-C0-V20-W8-D0.bin'
 CORPUS_METADATA = 'corpora/simplewikiselect.meta.json' # wikipedia dump
 VOCAB_FILE = "embeddings/vocab-C0-V20.txt" # wikipedia dump = C0
 
@@ -28,12 +29,12 @@ words_a = words_lists[TARGET_A]
 words_b = words_lists[TARGET_B]
 words_c = words_lists[CONTEXT]
 word_list = words_a + words_b + words_c
-cooc_dict = build_cooc_dict(word_list, str2idx)
+cooc_dict = build_cooc_dict(words_a + words_b, words_c, str2idx
+                            ,cooc_file=COOC_FILE)
 result = differential_bias_bydoc(
                 words_a, words_b, words_c, cooc_dict, str2count
                 ,metric="pmi", alpha=1.0, window_size=8
                 ,corpus=CORPUS, corpus_metadata=CORPUS_METADATA)
-
 
 #%% MOST biased
 most_biased = result.sort_values(by="diff_bias", ascending=False).head(5)
