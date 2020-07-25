@@ -1,10 +1,9 @@
 import numpy as np
 import pandas as pd
 import json
-from scipy.stats import norm
+from scipy.stats import norm, chi2_contingency
 
-from utils.coocurrence import create_cooc_dict
-
+from utils.coocurrence import create_cooc_dict, CREC, sizeof
 
 def pmi(cooc_dict, words_target, words_context, str2count, alpha=1.0):
     """Return PPMI of words_target, words_context using cooc dict and str2count
@@ -28,6 +27,35 @@ def pmi(cooc_dict, words_target, words_context, str2count, alpha=1.0):
     prob_context_con_target = count_context_con_target / count_target_total
     pmi = np.log(prob_context_con_target / prob_context_alpha)
     return pmi
+
+
+def odds_ratio(counts_a, counts_not_a, counts_b, counts_not_b, ci_level=None):
+    """Return Odds Ratio of counts_a, counts_not_a, counts_b, counts_not_b
+    words_context using cooc dict and str2count
+    If ci_level: return (oddsratio, lower, upper, pvalue)
+    """
+    if (counts_a == 0) & (counts_b == 0):
+        return float("nan")
+    elif counts_b == 0:
+        return float("inf")
+    elif counts_a == 0:
+        return float("-inf")
+    else:
+        odds_ratio = (counts_a/counts_not_a) / (counts_b/counts_not_b)
+    # ODDS ratio variance, CI and pvalue
+    if ci_level:
+        log_odds_variance = \
+            (1/counts_a) + (1/counts_not_a) + (1/counts_b) + (1/counts_not_b)
+        qt = norm.ppf(1 - (1 - ci_level) / 2)
+        lower = np.exp(np.log(odds_ratio) - qt * np.sqrt(log_odds_variance))
+        upper = np.exp(np.log(odds_ratio) + qt * np.sqrt(log_odds_variance))
+        def chisq_pvalue(a, not_a, b, not_b):
+            matriz = np.array([[a, not_a], [b, not_b]])
+            chi2, pv, dof, ex = chi2_contingency(matriz, correction=False)
+            return pv
+        pvalue = chisq_pvalue(counts_a, counts_not_a, counts_b, counts_not_b)
+        return odds_ratio, lower, upper, pvalue
+    return odds_ratio
 
 
 def bias_pmi(cooc_dict, words_target_a, words_target_b, words_context, str2count,
@@ -59,26 +87,10 @@ def bias_odds_ratio(cooc_dict, words_target_a, words_target_b, words_context,
         return result
     counts_a = odds_ratio_counts(words_target_a)
     counts_b = odds_ratio_counts(words_target_b)
-    # ODDS ratio
-    if (counts_a['context'] == 0) & (counts_a['context'] == 0):
-        odds_ratio = float("nan")
-    elif counts_b['context'] == 0:
-        odds_ratio = float("inf")
-    elif counts_a['context'] == 0:
-        odds_ratio = float("-inf")
-    else:
-        odds_ratio = (counts_a['context']/counts_a['notcontext']) / \
-            (counts_b['context']/counts_b['notcontext'])
-    # ODDS ratio variance and CI
-    if ci_level:
-        log_odds_variance = \
-            1 / counts_a['context'] + 1 / counts_a['notcontext'] + \
-            1 / counts_b['context'] + 1 / counts_b['notcontext']
-        qt = norm.ppf(1 - (1 - ci_level) / 2)
-        lower = np.exp(np.log(odds_ratio) - qt * np.sqrt(log_odds_variance))
-        upper = np.exp(np.log(odds_ratio) + qt * np.sqrt(log_odds_variance))
-        return odds_ratio, lower, upper
-    return odds_ratio
+    result = odds_ratio(
+        counts_a['context'], counts_a['notcontext'], counts_b['context']
+        ,counts_b['notcontext'], ci_level=ci_level)
+    return result
 
 
 def bias_relative_norm_distance(vector_dict
@@ -180,3 +192,59 @@ def differential_bias_bydoc(words_target_a, words_target_b, words_context,
             result['name'].append(doc_metadata['name'])
             result['diff_bias'].append(diff_bias)
     return pd.DataFrame(result)
+
+
+def bias_byword(words_target_a, words_target_b, words_context, str2idx, str2count,
+                ci_level=.95, cooc_file='embeddings/cooc-C0-V20-W8-D0.bin'):
+    """
+    Return DataFrame with Odds Ratio A/B for each word in words_context \
+    and the relevant coocurrence counts
+    """
+    words_outof_vocab = [w for w in words_target_a + words_target_b + \
+                                            words_context if w not in str2idx]
+    if words_outof_vocab:
+        print(f'{", ".join(words_outof_vocab)} \nNOT IN VOCAB')
+    idx2str = {str2idx[w]: w for w in words_context}
+    target_indices_a = sorted([str2idx[word] for word in words_target_a])
+    target_indices_b = sorted([str2idx[word] for word in words_target_b])
+    target_indices = sorted(target_indices_a + target_indices_b)
+    context_indices = sorted([str2idx[word] for word in words_context])
+    size_crec = sizeof(CREC) # crec: structura de coocucrrencia en Glove
+    # init dict of odds_ratio counts for each context word
+    str2counts = {w: dict() for w in words_context}
+    # open bin file sorted by idx1
+    with open(cooc_file, 'rb') as f:
+        cr = CREC()
+        k = 0
+        current_idx = target_indices[0]
+        while (f.readinto(cr) == size_crec):
+            if cr.idx1 in target_indices:
+                if cr.idx2 in context_indices:
+                    word = idx2str[cr.idx2]
+                    if cr.idx1 in target_indices_a:
+                        str2counts[word]['context_a'] = \
+                            str2counts[word].get('context_a', 0) + cr.value
+                    elif cr.idx1 in target_indices_b:
+                        str2counts[word]['context_b'] = \
+                            str2counts[word].get('context_b', 0) + cr.value
+                if cr.idx1 > current_idx:
+                    k += 1
+                    current_idx = target_indices[k]
+            # stop if idx1 is higher than highest target idx
+            if cr.idx1 > target_indices[len(target_indices) - 1]:
+                break
+    df_counts = pd.DataFrame.from_dict(str2counts, orient='index').fillna(0)
+    # Add columnas de odds ratio
+    count_target_a = sum([str2count.get(w,0) for w in words_target_a])
+    count_target_b = sum([str2count.get(w,0) for w in words_target_b])
+    df_counts['notcontext_a'] = count_target_a - df_counts['context_a']
+    df_counts['notcontext_b'] = count_target_b - df_counts['context_b']
+    def odds_(a, b, c, d, ci_level):
+        return pd.Series(odds_ratio(a, b, c, d, ci_level=ci_level))
+    df_odds = df_counts.apply(
+        lambda d: odds_(d['context_a'], d['notcontext_a'] \
+                        ,d['context_b'], d['notcontext_b'], ci_level=ci_level) \
+                            ,axis=1)
+    df_odds.columns = ['odds_ratio','upper','lower','pvalue']
+    result = pd.concat([df_counts, df_odds], axis=1)
+    return result
