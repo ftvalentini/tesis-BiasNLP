@@ -2,7 +2,7 @@ import os
 
 from utils.corpora import load_vocab
 from utils.coocurrence import build_cooc_dict
-from utils.metrics import differential_bias_bydoc
+from utils.metrics_cooc import differential_bias_bydoc
 
 #%% Corpus parameters
 CORPUS = 'corpora/simplewikiselect.txt' # wikipedia dump

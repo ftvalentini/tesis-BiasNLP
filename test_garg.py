@@ -1,6 +1,6 @@
 import os
 from utils.embeddings import get_embeddings
-from utils.metrics import bias_relative_norm_distance
+from utils.metrics_glove import bias_relative_norm_distance
 
 #%% Corpus parameters
 VOCAB_FILE = "embeddings/vocab-C0-V20.txt" # wikipedia dump = C0

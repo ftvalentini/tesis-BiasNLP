@@ -4,7 +4,7 @@ import pandas as pd
 
 from utils.corpora import load_vocab
 from utils.coocurrence import build_cooc_dict
-from utils.metrics import pmi, bias_odds_ratio
+from utils.metrics_cooc import pmi, bias_odds_ratio
 
 #%% Corpus parameters
 VOCAB_FILE = "embeddings/vocab-C0-V20.txt" # wikipedia dump = C0

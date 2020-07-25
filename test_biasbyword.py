@@ -5,7 +5,7 @@ from tqdm import tqdm
 
 from utils.corpora import load_vocab
 from utils.coocurrence import build_cooc_dict
-from utils.metrics import pmi, bias_odds_ratio, bias_byword
+from utils.metrics_cooc import pmi, bias_odds_ratio, bias_byword
 
 #%% Corpus parameters
 VOCAB_FILE = "embeddings/vocab-C0-V20.txt" # wikipedia dump = C0
