@@ -12,8 +12,10 @@ NUM_THREADS=${5:-"6"}
 VERBOSE=${6:-"2"}
 
 CORPORA=(
-$CORPORA_DIR/simplewikiselect.txt
-# $CORPORA_DIR/nytselect.txt
+$CORPORA_DIR/simplewikiselect.txt # ID 0
+$CORPORA_DIR/test.txt # ID 1
+$CORPORA_DIR/test_short.txt # ID 2
+$CORPORA_DIR/enwikiselect.txt # ID 3
 )
 
 # DEFAULT
