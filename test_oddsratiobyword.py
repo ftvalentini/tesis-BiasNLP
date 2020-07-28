@@ -1,7 +1,6 @@
 import os
 import numpy as np
 import pandas as pd
-from tqdm import tqdm
 
 from utils.corpora import load_vocab
 from utils.coocurrence import build_cooc_dict
@@ -9,7 +8,7 @@ from utils.metrics_cooc import pmi, bias_odds_ratio, bias_byword
 
 #%% Corpus parameters
 VOCAB_FILE = "embeddings/vocab-C0-V20.txt" # wikipedia dump = C0
-COOC_FILE = 'embeddings/cooc-C0-V20-W8-D0.bin' # wikipedia dump = C0
+COOC_FILE = 'embeddings/cooc-C0-V1-W8-D0.bin' # wikipedia dump = C0
 
 #%% Estereotipos parameters
 TARGET_A = 'MALE'
@@ -34,20 +33,22 @@ rdos['log_odds_ratio'] = np.log(rdos['odds_ratio'])
 most_biased = rdos.\
                 loc[np.isfinite(rdos['pvalue'])]. \
                 sort_values(['odds_ratio','pvalue'], ascending=[False, True]). \
-                head(10)
+                head(20)
 least_biased = rdos.\
                 loc[np.isfinite(rdos['pvalue'])]. \
                 sort_values(['odds_ratio','pvalue'], ascending=[True, True]). \
-                head(10)
+                head(20)
 
+#%% save pickle results
+rdos.to_pickle(f'results/pkl/oddsratio_byword_{TARGET_A}-{TARGET_B}.pkl')
 
 #%% print results
 with open(f'results/oddsratio_byword_{TARGET_A}-{TARGET_B}.md', "w") as f:
     print(
         f'with {COOC_FILE} :\n'
         ,f'\n### Most biased {TARGET_A}/{TARGET_B} \n'
-        ,most_biased
+        ,most_biased.to_markdown()
         ,f'\n### Most unbiased {TARGET_A}/{TARGET_B} \n'
-        ,least_biased
+        ,least_biased.to_markdown()
         ,file = f
     )

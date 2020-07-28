@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 import json
 from scipy.stats import norm, chi2_contingency
+from tqdm import tqdm
 
 from utils.coocurrence import create_cooc_dict, CREC, sizeof
 
@@ -179,12 +180,14 @@ def bias_byword(words_target_a, words_target_b, words_context, str2idx, str2coun
     # init dict of odds_ratio counts for each context word
     str2counts = {w: dict() for w in words_context}
     # open bin file sorted by idx1
+    pbar = tqdm(total=target_indices[-1])
     with open(cooc_file, 'rb') as f:
         cr = CREC()
         k = 0
         current_idx = target_indices[0]
         while (f.readinto(cr) == size_crec):
             if cr.idx1 in target_indices:
+                pbar.update(size_crec)
                 if cr.idx2 in context_indices:
                     word = idx2str[cr.idx2]
                     if cr.idx1 in target_indices_a:
@@ -197,8 +200,9 @@ def bias_byword(words_target_a, words_target_b, words_context, str2idx, str2coun
                     k += 1
                     current_idx = target_indices[k]
             # stop if idx1 is higher than highest target idx
-            if cr.idx1 > target_indices[len(target_indices) - 1]:
+            if cr.idx1 > target_indices[-1]:
                 break
+    pbar.close()
     df_counts = pd.DataFrame.from_dict(str2counts, orient='index').fillna(0)
     # Add columnas de odds ratio
     count_target_a = sum([str2count.get(w,0) for w in words_target_a])

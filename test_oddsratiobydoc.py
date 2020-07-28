@@ -37,7 +37,7 @@ result = differential_bias_bydoc(
                 ,corpus=CORPUS, corpus_metadata=CORPUS_METADATA)
 
 #%% MOST biased
-most_biased = result.sort_values(by="diff_bias", ascending=False).head(5)
+most_biased = result.sort_values(by="diff_bias", ascending=False).head(10)
 indices = most_biased['line'].sort_values().to_list()
 i = 0
 docs_most_biased = []
@@ -51,7 +51,7 @@ with open(CORPUS, "r", encoding="utf-8") as f:
         i += 1
 
 #%% LEAST biased
-least_biased = result.sort_values(by="diff_bias", ascending=True).head(5)
+least_biased = result.sort_values(by="diff_bias", ascending=True).head(10)
 indices = least_biased['line'].sort_values().to_list()
 i = 0
 docs_least_biased = []
@@ -64,13 +64,16 @@ with open(CORPUS, "r", encoding="utf-8") as f:
             break
         i += 1
 
+#%% save pickle results
+result.to_pickle(f'results/pkl/oddsratio_bydoc_{TARGET_A}-{TARGET_B}-{CONTEXT}.pkl')
+
 #%% print results
 with open(f'results/diffbias_bydoc_{TARGET_A}-{TARGET_B}-{CONTEXT}.md', "w") as f:
     print(
         f'with {CORPUS} :\n'
         ,f'\n### Most biased {TARGET_A}/{TARGET_B}/{CONTEXT} \n'
-        ,most_biased
+        ,most_biased.to_markdown()
         ,f'\n### Most unbiased {TARGET_A}/{TARGET_B}/{CONTEXT} \n'
-        ,least_biased
+        ,least_biased.to_markdown()
         ,file = f
     )
