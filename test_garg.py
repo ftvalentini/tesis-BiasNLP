@@ -22,7 +22,8 @@ words_a = words_lists[TARGET_A]
 words_b = words_lists[TARGET_B]
 words_c = words_lists[CONTEXT]
 word_list = words_a + words_b + words_c
-embeddings = get_embeddings(word_list, vocab_file=VOCAB_FILE, embed_file=EMBED_FILE)
+str2idx, idx2str, str2count = load_vocab(VOCAB_FILE)
+embeddings = get_embeddings(word_list, str2idx, idx2str, embed_file=EMBED_FILE)
 
 #%% Bias with relative norm distance
 bias_garg = bias_relative_norm_distance(

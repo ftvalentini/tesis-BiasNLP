@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
-
+import os, struct
+from tqdm import tqdm
 
 
 def bias_relative_norm_distance(vector_dict
@@ -35,3 +36,36 @@ def bias_relative_norm_distance(vector_dict
         lower, upper = rel_norm_distance - sd, rel_norm_distance + sd
         return rel_norm_distance, lower, upper
     return rel_norm_distance
+
+
+def bias_byword(vector_a, vector_b, words_context, str2idx, str2count
+                ,embed_file="embeddings/vectors-C0-V20-W8-D1-D50-R0.05-E100-S1.bin"):
+    """ Return DataFrame with
+        - Garg bias A/B of each Context word
+        - freq of each word
+    """
+    vocab_size = len(str2idx)
+    n_weights = os.path.getsize(embed_file) // 8 # 8 bytes per double
+    embed_dim = (n_weights - 2*vocab_size) // (2*vocab_size)
+        # dos vectores por word + 2 vectores constantes (biases)
+        # see https://github.com/mebrunet/understanding-bias/blob/master/src/GloVe.jl
+    # el bin esta ordenado por indice -- tienen vector dim 50 + 1 bias
+    indices = sorted([str2idx[w] for w in words_context])
+    idx2str = {str2idx[w]: w for w in words_context}
+    str2bias = dict()
+    # read embed_dim weights (double) + 1 bias (double) by word
+    with open(embed_file, 'rb') as f:
+        # idx starts in 1 in idx2str
+        for i in tqdm(range(1, vocab_size+1)):
+            embedding = struct.unpack('d'*embed_dim, f.read(8*embed_dim))
+            bias = struct.unpack('d'*1, f.read(8*1)) # 'd' for double
+            if i > indices[-1]:
+                break
+            if i in indices:
+                embedding /= np.linalg.norm(embedding) # normaliza vector
+                normdiff_a = np.linalg.norm(np.subtract(embedding, vector_a))
+                normdiff_b = np.linalg.norm(np.subtract(embedding, vector_b))
+                str2bias[idx2str[i]] = np.sum(normdiff_b - normdiff_a)
+    str2freq = {k: str2count[k] for k in str2count.keys() if k in words_context}
+    result = pd.DataFrame({'rel_norm_distance': str2bias, 'freq': str2freq})
+    return result
