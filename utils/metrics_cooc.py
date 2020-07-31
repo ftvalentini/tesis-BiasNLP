@@ -180,14 +180,14 @@ def bias_byword(words_target_a, words_target_b, words_context, str2idx, str2coun
     # init dict of odds_ratio counts for each context word
     str2counts = {w: dict() for w in words_context}
     # open bin file sorted by idx1
-    pbar = tqdm(total=target_indices[-1])
+    pbar = tqdm(total=target_indices[-1] * len(str2idx))
     with open(cooc_file, 'rb') as f:
         cr = CREC()
         k = 0
         current_idx = target_indices[0]
         while (f.readinto(cr) == size_crec):
+            pbar.update(1)
             if cr.idx1 in target_indices:
-                pbar.update(size_crec)
                 if cr.idx2 in context_indices:
                     word = idx2str[cr.idx2]
                     if cr.idx1 in target_indices_a:

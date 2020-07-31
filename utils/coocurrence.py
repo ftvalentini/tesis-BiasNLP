@@ -1,4 +1,5 @@
 from ctypes import Structure, c_int, c_double, sizeof
+from tqdm import tqdm
 
 
 class CREC(Structure):
@@ -26,6 +27,7 @@ def build_cooc_dict(words_target, words_context, str2idx,
     context_indices = sorted([str2idx[word] for word in words_context])
     cooc_dict = dict() # init dict
     size_crec = sizeof(CREC) # crec: structura de coocucrrencia en Glove
+    pbar = tqdm(total=target_indices[-1]*len(str2idx))
     # open bin file sorted by idx1
     with open(cooc_file, 'rb') as f:
         # --> we update current_idx each time we finish search of idx1
@@ -34,6 +36,7 @@ def build_cooc_dict(words_target, words_context, str2idx,
         current_idx = target_indices[0]
         # read and overwrite into cr while there is data
         while (f.readinto(cr) == size_crec):
+            pbar.update(1)
             if cr.idx1 in target_indices:
                 if cr.idx2 in context_indices:
                     cooc_dict[(idx2str[cr.idx1], idx2str[cr.idx2])] = cr.value
@@ -43,8 +46,9 @@ def build_cooc_dict(words_target, words_context, str2idx,
                     k += 1
                     current_idx = target_indices[k]
             # stop if idx1 is higher than highest target idx
-            if cr.idx1 > target_indices[len(target_indices) - 1]:
+            if cr.idx1 > target_indices[-1]:
                 break
+    pbar.close()
     return cooc_dict
 
 

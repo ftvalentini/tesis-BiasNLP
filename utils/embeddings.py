@@ -1,4 +1,5 @@
 import os, struct
+from tqdm import tqdm
 from utils.corpora import load_vocab
 
 def get_embeddings(word_list, str2idx
@@ -17,7 +18,7 @@ def get_embeddings(word_list, str2idx
     # read 50 weights (double) + 1 bias (double) by word
     with open(embed_file, 'rb') as f:
         # idx start in 1 in idx2str
-        for i in range(1, vocab_size+1):
+        for i in tqdm(range(1, vocab_size+1)):
             embedding = struct.unpack('d'*embed_dim, f.read(8*embed_dim))
             bias = struct.unpack('d'*1, f.read(8*1)) # 'd' for double
             if i > indices[-1]:
