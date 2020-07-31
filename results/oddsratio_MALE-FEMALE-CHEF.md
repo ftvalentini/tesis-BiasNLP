@@ -1,0 +1,15 @@
+with embeddings/vocab-C3-V20.txt :
+ 
+### PMI and Odds Ratio 
+ - pmi(MALE,CHEF) = 2.867938528968684
+ - pmi(FEMALE,CHEF) = 2.864799562602084
+ - diff_pmi = 0.003138966366599938
+ - logOddsRatio = 0.0031396616108471656
+ - CI-logOddsRatio = -0.10433997836567555 -- 0.1106193015873699
+ 
+### Word counts 
+ - MALE: 5938131
+ - FEMALE: 2012738
+ - MALE & CHEF: 1317.0
+ - FEMALE & CHEF: 445.0
+
