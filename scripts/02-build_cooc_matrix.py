@@ -27,9 +27,8 @@ def build_cooc_matrix(vocab_file, cooc_file):
     size_crec = sizeof(CREC)  # crec: structura de coocucrrencia en Glove
     # init sparse matrix VxV (los indices del vocab empiezan en 1)
     C = scipy.sparse.dok_matrix((V+1, V+1), dtype=np.float32)
-    # pbar = tqdm(total=V)
+    pbar = tqdm(total=V)
     k = min(list(idx2str.keys()))  # contador
-    k_max = max(list(idx2str.keys()))
     # open bin file and store coocs in C
     with open(cooc_file, 'rb') as f:
         # read and overwrite into cr while there is data
@@ -38,9 +37,8 @@ def build_cooc_matrix(vocab_file, cooc_file):
             C[cr.idx1, cr.idx2] = cr.value
             if cr.idx1 > k:
                 k += 1
-                print(f'{k} of {k_max} DONE')
-                # pbar.update(1)
-    # pbar.close()
+                pbar.update(1)
+    pbar.close()
     return C.tocsr()
 
 
