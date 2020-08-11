@@ -23,16 +23,15 @@ for f in os.listdir('words_lists'):
     nombre = os.path.splitext(f)[0]
     words_lists[nombre] = [line.strip() for line in open('words_lists/' + f, 'r')]
 
-#%% Load corpus vocab dicts
+#%% Load corpus vocab dicts and cooc matrix
+print("Loading data...\n")
 str2idx, idx2str, str2count = load_vocab(vocab_file=VOCAB_FILE)
+cooc_matrix = scipy.sparse.load_npz(COOC_FILE)
 
 #%% TEST: pmi(A,c)-pmi(B,c) near bias_odds_ratio(A,B,c)
 words_a = words_lists[TARGET_A]
 words_b = words_lists[TARGET_B]
 words_c = words_lists[CONTEXT]
-
-print("Loading cooccurence matrix...\n")
-cooc_matrix = scipy.sparse.load_npz(COOC_FILE)
 pmi_a = pmi(cooc_matrix, words_a, words_c, str2idx, alpha=1)
 pmi_b = pmi(cooc_matrix, words_b, words_c, str2idx, alpha=1)
 odds_ratio = bias_odds_ratio(

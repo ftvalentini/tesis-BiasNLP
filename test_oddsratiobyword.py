@@ -1,18 +1,20 @@
-import os
 import numpy as np
 import pandas as pd
+import os, datetime
+import scipy.sparse
 
-from utils.corpora import load_vocab
-from utils.coocurrence import build_cooc_dict
-from utils.metrics_cooc import pmi, bias_odds_ratio, bias_byword
+from scripts.utils.corpora import load_vocab
+from metrics.cooc import pmi, bias_odds_ratio, bias_byword
 
 #%% Corpus parameters
-VOCAB_FILE = "embeddings/vocab-C0-V20.txt" # wikipedia dump = C0
-COOC_FILE = 'embeddings/cooc-C0-V1-W8-D0.bin' # wikipedia dump = C0
+VOCAB_FILE = "embeddings/vocab-C3-V1.txt" # wikipedia dump = C0
+COOC_FILE = "embeddings/cooc-C3-V1-W8-D0.npz"
 
 #%% Estereotipos parameters
 TARGET_A = 'MALE'
 TARGET_B = 'FEMALE'
+
+print("START:", datetime.datetime.now())
 
 #%% Read all Estereotipos
 words_lists = dict()
@@ -21,15 +23,15 @@ for f in os.listdir('words_lists'):
     words_lists[nombre] = [line.strip() for line in open('words_lists/' + f, 'r')]
 
 #%% Load corpus vocab dicts
+print("Loading data...\n")
 str2idx, idx2str, str2count = load_vocab(vocab_file=VOCAB_FILE)
+cooc_matrix = scipy.sparse.load_npz(COOC_FILE)
 
 #%% TEST: Odds Ratio A/B for every word in vocab
 words_a = words_lists[TARGET_A]
 words_b = words_lists[TARGET_B]
 words_context = [w for w in str2count.keys() if w not in words_a + words_b]
-rdos = bias_byword(words_a, words_b, words_context, str2idx, str2count
-                , cooc_file=COOC_FILE)
-rdos['log_odds_ratio'] = np.log(rdos['odds_ratio'])
+rdos = bias_byword(cooc_matrix, words_a, words_b, words_context, str2idx)
 most_biased = rdos.\
                 loc[np.isfinite(rdos['pvalue'])]. \
                 sort_values(['odds_ratio','pvalue'], ascending=[False, True]). \
@@ -52,3 +54,5 @@ with open(f'results/oddsratio_byword_{TARGET_A}-{TARGET_B}.md', "w") as f:
         ,least_biased.to_markdown()
         ,file = f
     )
+
+print("START:", datetime.datetime.now())

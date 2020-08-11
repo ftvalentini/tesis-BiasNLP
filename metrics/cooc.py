@@ -162,64 +162,67 @@ def bias_odds_ratio(cooc_matrix, words_target_a, words_target_b, words_context,
 #             result['name'].append(doc_metadata['name'])
 #             result['diff_bias'].append(diff_bias)
 #     return pd.DataFrame(result)
-#
-#
-# def bias_byword(words_target_a, words_target_b, words_context, str2idx, str2count,
-#                 ci_level=.95, cooc_file='embeddings/cooc-C0-V20-W8-D0.bin'):
-#     """
-#     Return DataFrame with Odds Ratio A/B for each word in words_context \
-#     and the relevant coocurrence counts
-#     """
-#     words_outof_vocab = [w for w in words_target_a + words_target_b + \
-#                                             words_context if w not in str2idx]
-#     if len(words_outof_vocab) == len(words_context+words_target):
-#         raise ValueError("ALL WORDS ARE OUT OF VOCAB")
-#     if words_outof_vocab:
-#         print(f'{", ".join(words_outof_vocab)} \nNOT IN VOCAB')
-#     idx2str = {str2idx[w]: w for w in words_context}
-#     target_indices_a = sorted([str2idx[word] for word in words_target_a])
-#     target_indices_b = sorted([str2idx[word] for word in words_target_b])
-#     target_indices = sorted(target_indices_a + target_indices_b)
-#     context_indices = sorted([str2idx[word] for word in words_context])
-#     size_crec = sizeof(CREC) # crec: structura de coocucrrencia en Glove
-#     # init dict of odds_ratio counts for each context word
-#     str2counts = {w: dict() for w in words_context}
-#     # open bin file sorted by idx1
-#     pbar = tqdm(total=target_indices[-1] * len(str2idx))
-#     with open(cooc_file, 'rb') as f:
-#         cr = CREC()
-#         k = 0
-#         current_idx = target_indices[0]
-#         while (f.readinto(cr) == size_crec):
-#             pbar.update(1)
-#             if cr.idx1 in target_indices:
-#                 if cr.idx2 in context_indices:
-#                     word = idx2str[cr.idx2]
-#                     if cr.idx1 in target_indices_a:
-#                         str2counts[word]['context_a'] = \
-#                             str2counts[word].get('context_a', 0) + cr.value
-#                     elif cr.idx1 in target_indices_b:
-#                         str2counts[word]['context_b'] = \
-#                             str2counts[word].get('context_b', 0) + cr.value
-#                 if cr.idx1 > current_idx:
-#                     k += 1
-#                     current_idx = target_indices[k]
-#             # stop if idx1 is higher than highest target idx
-#             if cr.idx1 > target_indices[-1]:
-#                 break
-#     pbar.close()
-#     df_counts = pd.DataFrame.from_dict(str2counts, orient='index').fillna(0)
-#     # Add columnas de odds ratio
-#     count_target_a = sum([str2count.get(w,0) for w in words_target_a])
-#     count_target_b = sum([str2count.get(w,0) for w in words_target_b])
-#     df_counts['notcontext_a'] = count_target_a - df_counts['context_a']
-#     df_counts['notcontext_b'] = count_target_b - df_counts['context_b']
-#     def odds_(a, b, c, d, ci_level):
-#         return pd.Series(odds_ratio(a, b, c, d, ci_level=ci_level))
-#     df_odds = df_counts.apply(
-#         lambda d: odds_(d['context_a'], d['notcontext_a'] \
-#                         ,d['context_b'], d['notcontext_b'], ci_level=ci_level) \
-#                             ,axis=1)
-#     df_odds.columns = ['odds_ratio','upper','lower','pvalue']
-#     result = pd.concat([df_counts, df_odds], axis=1)
-#     return result
+
+
+def bias_byword(cooc_matrix, words_target_a, words_target_b, words_context, str2idx
+                ,ci_level=.95):
+    """
+    Return DataFrame with Odds Ratio A/B for each word in words_context \
+    and the relevant coocurrence counts
+    """
+    # handling target words out of vocab
+    words_target = words_target_a + words_target_b
+    words_outof_vocab = [w for w in words_target if w not in str2idx]
+    if len(words_outof_vocab) == len(words_target):
+        raise ValueError("ALL WORDS ARE OUT OF VOCAB")
+    if words_outof_vocab:
+        print(f'{", ".join(words_outof_vocab)} \nNOT IN VOCAB')
+    # matrix statistics
+    C = cooc_matrix
+    # target indices
+    idx_a = [str2idx[w] for w in words_target_a if w not in words_outof_vocab]
+    idx_b = [str2idx[w] for w in words_target_b if w not in words_outof_vocab]
+    # frecuencias
+    total_count = C.sum() # total
+    count_a = C[idx_a,:].sum() # total target A
+    count_b = C[idx_b,:].sum() # total target B
+    counts_context = C.sum(axis=0) # totales de cada contexto
+    counts_context_a = C[idx_a,:].sum(axis=0) # de cada contexto con target A
+    counts_context_b = C[idx_b,:].sum(axis=0) # de cada contexto con target B
+    counts_notcontext_a = count_a - counts_context_a # de A sin cada contexto
+    counts_notcontext_b = count_b - counts_context_b # de B sin cada contexto
+    # probabilidades
+    prob_a = count_a / total_count
+    prob_b = count_b / total_count
+    probs_context = counts_context / total_count
+    probs_context_a = counts_context_a / total_count
+    probs_context_b = counts_context_b / total_count
+    # PMI
+    pmi_a = probs_context_a / (prob_a * probs_context)
+    pmi_b = probs_context_b / (prob_b * probs_context)
+    # insert en DataFrame  segun word index
+    str2idx_context = {w: idx for w, idx in str2idx.items() if w in words_context}
+    df = pd.DataFrame(str2idx_context.items(), columns=['word','idx'])
+    df['pmi_a'] = df['idx'].apply(lambda x: pmi_a[:,x]).astype(float)
+    df['pmi_b'] = df['idx'].apply(lambda x: pmi_b[:,x]).astype(float)
+    df['diff_pmi'] = df['pmi_a'] - df['pmi_b']
+    df['count_context_a'] = df['idx'].apply(
+                                lambda x: counts_context_a[:,x]).astype(float)
+    df['count_notcontext_a'] = df['idx'].apply(
+                                lambda x: counts_notcontext_a[:,x]).astype(float)
+    df['count_context_b'] = df['idx'].apply(
+                                lambda x: counts_context_b[:,x]).astype(float)
+    df['count_notcontext_b'] = df['idx'].apply(
+                                lambda x: counts_notcontext_b[:,x]).astype(float)
+    # add calculo de odds ratio
+    def odds_(a, b, c, d, ci_level):
+        return pd.Series(odds_ratio(a, b, c, d, ci_level=ci_level))
+    df_odds = df.apply(
+        lambda d: odds_(d['count_context_a'], d['count_notcontext_a'] \
+                        ,d['count_context_b'], d['count_notcontext_b']
+                        , ci_level=ci_level), axis=1)
+    df_odds.columns = ['odds_ratio','upper','lower','pvalue']
+    df_odds['log_odds_ratio'] = np.log(df_odds['odds_ratio'])
+    # final result
+    result = pd.concat([df, df_odds], axis=1)
+    return result
