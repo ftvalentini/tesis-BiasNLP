@@ -211,7 +211,9 @@ def bias_byword(cooc_matrix, words_target_a, words_target_b, words_context, str2
     # insert en DataFrame  segun word index
         # words context siempre sorted segun indice!!!
     print("Putting results in DataFrame...\n")
-    str2idx_context = {w: idx for w, idx in str2idx.items() if w in words_context}
+    str2idx_context = str2idx.copy()
+    for w in words_target:
+        del str2idx_context[w]
     print("Creating DataFrame...\n")
     df = pd.DataFrame(str2idx_context.items(), columns=['word','idx'])
     print("pmi a...\n")
