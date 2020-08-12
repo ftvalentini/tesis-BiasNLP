@@ -4,7 +4,7 @@ import json
 from scipy.stats import norm, chi2_contingency
 from tqdm import tqdm
 
-from utils.coocurrence import create_cooc_matrix
+from .utils.coocurrence import create_cooc_matrix
 
 
 def pmi(cooc_matrix, words_target, words_context, str2idx, alpha=1.0):
