@@ -183,17 +183,19 @@ def bias_byword(cooc_matrix, words_target_a, words_target_b, words_context, str2
         print(f'{", ".join(words_outof_vocab)} \nNOT IN VOCAB')
     # matrix statistics
     C = cooc_matrix
-    # target indices
+    # words indices
     idx_a = [str2idx[w] for w in words_target_a if w not in words_outof_vocab]
     idx_b = [str2idx[w] for w in words_target_b if w not in words_outof_vocab]
+    idx_c = sorted([str2idx[w] for w in words_context if w not in words_outof_vocab])
+        # words context siempre sorted segun indice!!!
     # frecuencias
     print("Computing counts...\n")
     total_count = C.sum() # total
     count_a = C[idx_a,:].sum() # total target A
     count_b = C[idx_b,:].sum() # total target B
-    counts_context = C.sum(axis=0) # totales de cada contexto
-    counts_context_a = C[idx_a,:].sum(axis=0) # de cada contexto con target A
-    counts_context_b = C[idx_b,:].sum(axis=0) # de cada contexto con target B
+    counts_context = C[:,idx_c].sum(axis=0) # totales de cada contexto
+    counts_context_a = C[idx_a,:][:,idx_c].sum(axis=0) # de cada contexto con target A
+    counts_context_b = C[idx_b,:][:,idx_c].sum(axis=0) # de cada contexto con target A
     counts_notcontext_a = count_a - counts_context_a # de A sin cada contexto
     counts_notcontext_b = count_b - counts_context_b # de B sin cada contexto
     # probabilidades
@@ -207,20 +209,17 @@ def bias_byword(cooc_matrix, words_target_a, words_target_b, words_context, str2
     pmi_a = probs_context_a / (prob_a * probs_context)
     pmi_b = probs_context_b / (prob_b * probs_context)
     # insert en DataFrame  segun word index
+        # words context siempre sorted segun indice!!!
     print("Putting results in DataFrame...\n")
     str2idx_context = {w: idx for w, idx in str2idx.items() if w in words_context}
     df = pd.DataFrame(str2idx_context.items(), columns=['word','idx'])
-    df['pmi_a'] = df['idx'].apply(lambda x: pmi_a[:,x]).astype(float)
-    df['pmi_b'] = df['idx'].apply(lambda x: pmi_b[:,x]).astype(float)
+    df['pmi_a'] = pmi_a.T
+    df['pmi_b'] = pmi_b.T
     df['diff_pmi'] = df['pmi_a'] - df['pmi_b']
-    df['count_context_a'] = df['idx'].apply(
-                                lambda x: counts_context_a[:,x]).astype(float)
-    df['count_notcontext_a'] = df['idx'].apply(
-                                lambda x: counts_notcontext_a[:,x]).astype(float)
-    df['count_context_b'] = df['idx'].apply(
-                                lambda x: counts_context_b[:,x]).astype(float)
-    df['count_notcontext_b'] = df['idx'].apply(
-                                lambda x: counts_notcontext_b[:,x]).astype(float)
+    df['count_context_a'] = counts_context_a.T
+    df['count_notcontext_a'] = counts_notcontext_a.T
+    df['count_context_b'] = counts_context_b.T
+    df['count_notcontext_b'] = counts_notcontext_b.T
     # add calculo de odds ratio
     print("Computing Odds Ratios...\n")
     def odds_(a, b, c, d, ci_level):
