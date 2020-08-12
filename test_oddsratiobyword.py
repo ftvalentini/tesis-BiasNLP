@@ -31,6 +31,7 @@ cooc_matrix = scipy.sparse.load_npz(COOC_FILE)
 words_a = words_lists[TARGET_A]
 words_b = words_lists[TARGET_B]
 words_context = [w for w in str2count.keys() if w not in words_a + words_b]
+print("Computing results...\n")
 rdos = bias_byword(cooc_matrix, words_a, words_b, words_context, str2idx)
 most_biased = rdos.\
                 loc[np.isfinite(rdos['pvalue'])]. \
@@ -55,4 +56,4 @@ with open(f'results/oddsratio_byword_{TARGET_A}-{TARGET_B}.md', "w") as f:
         ,file = f
     )
 
-print("START:", datetime.datetime.now())
+print("END:", datetime.datetime.now())

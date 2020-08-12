@@ -4,6 +4,8 @@ import json
 from scipy.stats import norm, chi2_contingency
 from tqdm import tqdm
 
+from utils.coocurrence import create_cooc_matrix
+
 
 def pmi(cooc_matrix, words_target, words_context, str2idx, alpha=1.0):
     """Return PPMI of words_target, words_context using scipy.sparse cooc_matrix
@@ -97,71 +99,73 @@ def bias_odds_ratio(cooc_matrix, words_target_a, words_target_b, words_context,
     return result
 
 
-# def differential_bias_bydoc(words_target_a, words_target_b, words_context,
-#                             cooc_dict, str2count,
-#                             metric="ppmi",
-#                             alpha=1.0, window_size=8,
-#                             corpus="corpora/simplewikiselect.txt",
-#                             corpus_metadata='corpora/simplewikiselect.meta.json'
-#                             ):
-#     """Return pd.DataFrame with one row by doc and columns:
-#         - id
-#         - line of corpus
-#         - name of document
-#         - differential bias (bias global - bias sin el texto)
-#     Param:
-#         - metric: "pmi", "odds_ratio"
-#     """
-#     # computa bias global
-#     def bias_total(cooc_dict, str2count, metric=metric):
-#         if metric == "pmi":
-#             return bias_pmi(cooc_dict, words_target_a, words_target_b \
-#                             , words_context, str2count, alpha=alpha)
-#         elif metric == "odds_ratio":
-#             return bias_odds_ratio(cooc_dict, words_target_a, words_target_b \
-#                             , words_context, str2count)
-#     bias_global = bias_total(cooc_dict, str2count, metric)
-#     # sets of words to test intersection with docs
-#     words_list = words_target_a + words_target_b + words_context
-#     words_target = set(words_target_a) | set(words_target_b)
-#     # read docs metadata to retrieve index, name
-#     with open(corpus_metadata, "r", encoding="utf-8") as f:
-#         docs_metadata = json.load(f)['index']
-#     # for each doc: read metadata + read doc + cooc_matrix + differential bias
-#     result = {'id': [], 'line': [], 'name': [], 'diff_bias': []}  # init results dict
-#     i = -1  # init doc counter
-#     with open(corpus, "r", encoding="utf-8") as f:
-#         while True:
-#             i += 1
-#             doc = f.readline().strip()
-#             # end when no more docs to read:
-#             if not doc:
-#                 break
-#             words_doc = doc.split()
-#             # si no hay words target --> not parse:
-#             if not bool(set(words_doc) & words_target):
-#                 continue
-#             doc_metadata = [d for d in docs_metadata if d['line'] == i][0]
-#             # compute cooc_dict y str2count of document
-#             cooc_dict_i = create_cooc_dict(
-#                 doc, words_list, window_size=window_size)
-#             str2count_i = pd.value_counts(words_doc).to_dict()
-#             # update cooc global y str2count global
-#             cooc_dict_new = \
-#                     {k: v - cooc_dict_i.get(k, 0) for k, v in cooc_dict.items()}
-#             str2count_new = \
-#                     {w: str2count.get(w, 0) - str2count_i.get(w, 0) \
-#                                                             for w in words_list}
-#             # compute new bias
-#             bias_global_new = bias_total(cooc_dict_new, str2count_new, metric)
-#             # Differential bias
-#             diff_bias = bias_global - bias_global_new
-#             # make results DataFrame
-#             result['id'].append(doc_metadata['id'])
-#             result['line'].append(i)
-#             result['name'].append(doc_metadata['name'])
-#             result['diff_bias'].append(diff_bias)
-#     return pd.DataFrame(result)
+def differential_bias_bydoc(cooc_matrix
+                            ,words_target_a, words_target_b, words_context
+                            ,str2idx
+                            ,metric="pmi"
+                            ,alpha=1.0, window_size=8
+                            ,corpus="corpora/simplewikiselect.txt"
+                            ,corpus_metadata='corpora/simplewikiselect.meta.json'
+                            ):
+    """Return pd.DataFrame with one row by doc and columns:
+        - id
+        - line of corpus
+        - name of document
+        - differential bias (bias global - bias sin el texto)
+    Param:
+        - cooc_matrix: full coocurrence sparse matrix
+        - metric: "pmi", "odds_ratio"
+        - str2idx: el mismo that was used to build cooc_matrix
+    """
+    # computa bias global
+    def bias_total(cooc_matrix, str2idx, metric=metric):
+        if metric == "pmi":
+            return bias_pmi(cooc_matrix, words_target_a, words_target_b \
+                            , words_context, str2idx, alpha=alpha)
+        elif metric == "odds_ratio":
+            return bias_odds_ratio(cooc_matrix, words_target_a, words_target_b \
+                            , words_context, str2idx)
+    bias_global = bias_total(cooc_matrix, str2idx, metric)
+    # sets of words to test intersection with docs
+    words_list = words_target_a + words_target_b + words_context
+    words_target = set(words_target_a) | set(words_target_b)
+    # read docs metadata to retrieve index, name
+    with open(corpus_metadata, "r", encoding="utf-8") as f:
+        docs_metadata = json.load(f)['index']
+    # for each doc: read metadata + read doc + cooc_matrix + differential bias
+    result = {'id': [], 'line': [], 'name': [], 'diff_bias': []}  # init results dict
+    i = -1  # init doc counter
+    pbar = tqdm(total=len(docs_metadata))
+    with open(corpus, "r", encoding="utf-8") as f:
+        while True:
+            i += 1
+            doc = f.readline().strip()
+            pbar.update(1)
+            # end when no more docs to read:
+            if not doc:
+                break
+            tokens_doc = doc.split()
+            # si no hay words target --> not parse:
+            if not bool(set(tokens_doc) & words_target):
+                continue
+            doc_metadata = [d for d in docs_metadata if d['line'] == i][0]
+            # compute sparse cooc_matrix of same shape as full matrix
+                # only with counts for words in words_list
+            cooc_matrix_i = create_cooc_matrix(
+                doc, words_list, str2idx, window_size=window_size)
+            # update cooc global
+            cooc_matrix_new = cooc_matrix - cooc_matrix_i
+            # compute new bias
+            bias_global_new = bias_total(cooc_matrix_new, str2idx, metric)
+            # Differential bias
+            diff_bias = bias_global - bias_global_new
+            # make results DataFrame
+            result['id'].append(doc_metadata['id'])
+            result['line'].append(i)
+            result['name'].append(doc_metadata['name'])
+            result['diff_bias'].append(diff_bias)
+    pbar.close()
+    return pd.DataFrame(result)
 
 
 def bias_byword(cooc_matrix, words_target_a, words_target_b, words_context, str2idx
@@ -183,6 +187,7 @@ def bias_byword(cooc_matrix, words_target_a, words_target_b, words_context, str2
     idx_a = [str2idx[w] for w in words_target_a if w not in words_outof_vocab]
     idx_b = [str2idx[w] for w in words_target_b if w not in words_outof_vocab]
     # frecuencias
+    print("Computing counts...\n")
     total_count = C.sum() # total
     count_a = C[idx_a,:].sum() # total target A
     count_b = C[idx_b,:].sum() # total target B
@@ -192,6 +197,7 @@ def bias_byword(cooc_matrix, words_target_a, words_target_b, words_context, str2
     counts_notcontext_a = count_a - counts_context_a # de A sin cada contexto
     counts_notcontext_b = count_b - counts_context_b # de B sin cada contexto
     # probabilidades
+    print("Computing probabilities...\n")
     prob_a = count_a / total_count
     prob_b = count_b / total_count
     probs_context = counts_context / total_count
@@ -201,6 +207,7 @@ def bias_byword(cooc_matrix, words_target_a, words_target_b, words_context, str2
     pmi_a = probs_context_a / (prob_a * probs_context)
     pmi_b = probs_context_b / (prob_b * probs_context)
     # insert en DataFrame  segun word index
+    print("Putting results in DataFrame...\n")
     str2idx_context = {w: idx for w, idx in str2idx.items() if w in words_context}
     df = pd.DataFrame(str2idx_context.items(), columns=['word','idx'])
     df['pmi_a'] = df['idx'].apply(lambda x: pmi_a[:,x]).astype(float)
@@ -215,6 +222,7 @@ def bias_byword(cooc_matrix, words_target_a, words_target_b, words_context, str2
     df['count_notcontext_b'] = df['idx'].apply(
                                 lambda x: counts_notcontext_b[:,x]).astype(float)
     # add calculo de odds ratio
+    print("Computing Odds Ratios...\n")
     def odds_(a, b, c, d, ci_level):
         return pd.Series(odds_ratio(a, b, c, d, ci_level=ci_level))
     df_odds = df.apply(
