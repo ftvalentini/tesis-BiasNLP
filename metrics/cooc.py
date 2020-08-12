@@ -214,32 +214,25 @@ def bias_byword(cooc_matrix, words_target_a, words_target_b, words_context, str2
     str2idx_context = str2idx.copy()
     for w in words_target:
         del str2idx_context[w]
-    print("Creating DataFrame...\n")
     df = pd.DataFrame(str2idx_context.items(), columns=['word','idx'])
-    print("pmi a...\n")
     df['pmi_a'] = pmi_a.T
-    print("pmi b...\n")
     df['pmi_b'] = pmi_b.T
-    print("diff pmi...\n")
     df['diff_pmi'] = df['pmi_a'] - df['pmi_b']
-    print("count ca...\n")
     df['count_context_a'] = counts_context_a.T
-    print("count nca...\n")
     df['count_notcontext_a'] = counts_notcontext_a.T
-    print("count cb...\n")
     df['count_context_b'] = counts_context_b.T
-    print("count ncb...\n")
     df['count_notcontext_b'] = counts_notcontext_b.T
-    # add calculo de odds ratio
-    print("Computing Odds Ratios...\n")
-    def odds_(a, b, c, d, ci_level):
-        return pd.Series(odds_ratio(a, b, c, d, ci_level=ci_level))
-    df_odds = df.apply(
-        lambda d: odds_(d['count_context_a'], d['count_notcontext_a'] \
-                        ,d['count_context_b'], d['count_notcontext_b']
-                        , ci_level=ci_level), axis=1)
-    df_odds.columns = ['odds_ratio','upper','lower','pvalue']
-    df_odds['log_odds_ratio'] = np.log(df_odds['odds_ratio'])
-    # final result
-    result = pd.concat([df, df_odds], axis=1)
+    # # add calculo de odds ratio
+    # print("Computing Odds Ratios...\n")
+    # def odds_(a, b, c, d, ci_level):
+    #     return pd.Series(odds_ratio(a, b, c, d, ci_level=ci_level))
+    # df_odds = df.apply(
+    #     lambda d: odds_(d['count_context_a'], d['count_notcontext_a'] \
+    #                     ,d['count_context_b'], d['count_notcontext_b']
+    #                     , ci_level=ci_level), axis=1)
+    # df_odds.columns = ['odds_ratio','upper','lower','pvalue']
+    # df_odds['log_odds_ratio'] = np.log(df_odds['odds_ratio'])
+    # # final result
+    # result = pd.concat([df, df_odds], axis=1)
+    result = df
     return result
