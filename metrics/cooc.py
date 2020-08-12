@@ -212,13 +212,21 @@ def bias_byword(cooc_matrix, words_target_a, words_target_b, words_context, str2
         # words context siempre sorted segun indice!!!
     print("Putting results in DataFrame...\n")
     str2idx_context = {w: idx for w, idx in str2idx.items() if w in words_context}
+    print("Creating DataFrame...\n")
     df = pd.DataFrame(str2idx_context.items(), columns=['word','idx'])
+    print("pmi a...\n")
     df['pmi_a'] = pmi_a.T
+    print("pmi b...\n")
     df['pmi_b'] = pmi_b.T
+    print("diff pmi...\n")
     df['diff_pmi'] = df['pmi_a'] - df['pmi_b']
+    print("count ca...\n")
     df['count_context_a'] = counts_context_a.T
+    print("count nca...\n")
     df['count_notcontext_a'] = counts_notcontext_a.T
+    print("count cb...\n")
     df['count_context_b'] = counts_context_b.T
+    print("count ncb...\n")
     df['count_notcontext_b'] = counts_notcontext_b.T
     # add calculo de odds ratio
     print("Computing Odds Ratios...\n")
