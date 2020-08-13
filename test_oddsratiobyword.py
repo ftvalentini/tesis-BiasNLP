@@ -45,7 +45,7 @@ rdos = bias_byword(cooc_matrix, words_a, words_b, words_context, str2idx)
 #                 head(20)
 
 #%% save pickle results
-rdos.to_csv(f'results/pkl/oddsratio_byword_{TARGET_A}-{TARGET_B}.csv')
+rdos.to_csv(f'results/pkl/oddsratio_byword_{TARGET_A}-{TARGET_B}.csv', index=False)
 
 #%% print results
 # with open(f'results/oddsratio_byword_{TARGET_A}-{TARGET_B}.md', "w") as f:
