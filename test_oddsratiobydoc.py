@@ -1,14 +1,14 @@
 import os
+import scipy.sparse
 
-from utils.corpora import load_vocab
-from utils.coocurrence import build_cooc_dict
-from utils.metrics_cooc import differential_bias_bydoc
+from scripts.utils.corpora import load_vocab
+from metrics.cooc import differential_bias_bydoc
 
 #%% Corpus parameters
-CORPUS = 'corpora/simplewikiselect.txt' # wikipedia dump
-COOC_FILE = 'embeddings/cooc-C0-V20-W8-D0.bin'
-CORPUS_METADATA = 'corpora/simplewikiselect.meta.json' # wikipedia dump
-VOCAB_FILE = "embeddings/vocab-C0-V20.txt" # wikipedia dump = C0
+CORPUS = 'corpora/enwikiselect.txt' # wikipedia dump
+COOC_FILE = 'embeddings/cooc-C3-V1-W8-D0.npz' # wikipedia dump = C0
+CORPUS_METADATA = 'corpora/enwikiselect.meta.json' # wikipedia dump
+VOCAB_FILE = "embeddings/vocab-C3-V1.txt" # wikipedia dump = C0
 
 #%% Estereotipos parameters
 TARGET_A = 'MALE'
@@ -22,17 +22,17 @@ for f in os.listdir('words_lists'):
     words_lists[nombre] = [line.strip() for line in open('words_lists/' + f, 'r')]
 
 #%% Load corpus vocab dicts
+print("Loading data...\n")
 str2idx, idx2str, str2count = load_vocab(vocab_file=VOCAB_FILE)
+cooc_matrix = scipy.sparse.load_npz(COOC_FILE)
 
 #%% Get "diffential bias" by doc
 words_a = words_lists[TARGET_A]
 words_b = words_lists[TARGET_B]
 words_c = words_lists[CONTEXT]
-word_list = words_a + words_b + words_c
-cooc_dict = build_cooc_dict(words_a + words_b, words_c, str2idx
-                            ,cooc_file=COOC_FILE)
+print("Computing bias by document...\n")
 result = differential_bias_bydoc(
-                words_a, words_b, words_c, cooc_dict, str2count
+                cooc_matrix, words_a, words_b, words_c, str2idx
                 ,metric="pmi", alpha=1.0, window_size=8
                 ,corpus=CORPUS, corpus_metadata=CORPUS_METADATA)
 
@@ -65,7 +65,8 @@ with open(CORPUS, "r", encoding="utf-8") as f:
         i += 1
 
 #%% save pickle results
-result.to_pickle(f'results/pkl/oddsratio_bydoc_{TARGET_A}-{TARGET_B}-{CONTEXT}.pkl')
+result.to_csv(
+    f'results/pkl/oddsratio_bydoc_{TARGET_A}-{TARGET_B}-{CONTEXT}.csv', index=False)
 
 #%% print results
 with open(f'results/diffbias_bydoc_{TARGET_A}-{TARGET_B}-{CONTEXT}.md', "w") as f:
