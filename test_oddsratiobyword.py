@@ -35,27 +35,27 @@ words_context = [w for w, freq in str2count.items() if \
                         w not in words_a + words_b and freq >= WORD_MIN_COUNT]
 print("Computing results...\n")
 rdos = bias_byword(cooc_matrix, words_a, words_b, words_context, str2idx)
-# most_biased = rdos.\
-#                 loc[np.isfinite(rdos['pvalue'])]. \
-#                 sort_values(['odds_ratio','pvalue'], ascending=[False, True]). \
-#                 head(20)
-# least_biased = rdos.\
-#                 loc[np.isfinite(rdos['pvalue'])]. \
-#                 sort_values(['odds_ratio','pvalue'], ascending=[True, True]). \
-#                 head(20)
+most_biased = rdos.\
+                loc[np.isfinite(rdos['pvalue'])]. \
+                sort_values(['odds_ratio','pvalue'], ascending=[False, True]). \
+                head(20)
+least_biased = rdos.\
+                loc[np.isfinite(rdos['pvalue'])]. \
+                sort_values(['odds_ratio','pvalue'], ascending=[True, True]). \
+                head(20)
 
 #%% save pickle results
 rdos.to_csv(f'results/pkl/oddsratio_byword_{TARGET_A}-{TARGET_B}.csv', index=False)
 
 #%% print results
-# with open(f'results/oddsratio_byword_{TARGET_A}-{TARGET_B}.md', "w") as f:
-#     print(
-#         f'with {COOC_FILE} :\n'
-#         ,f'\n### Most biased {TARGET_A}/{TARGET_B} \n'
-#         ,most_biased.to_markdown()
-#         ,f'\n### Most unbiased {TARGET_A}/{TARGET_B} \n'
-#         ,least_biased.to_markdown()
-#         ,file = f
-#     )
+with open(f'results/oddsratio_byword_{TARGET_A}-{TARGET_B}.md', "w") as f:
+    print(
+        f'with {COOC_FILE} :\n'
+        ,f'\n### Most biased {TARGET_A}/{TARGET_B} \n'
+        ,most_biased.to_markdown()
+        ,f'\n### Most unbiased {TARGET_A}/{TARGET_B} \n'
+        ,least_biased.to_markdown()
+        ,file = f
+    )
 
 print("END:", datetime.datetime.now())
