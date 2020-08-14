@@ -1,5 +1,5 @@
 import numpy as np
-import os, struct
+import os, struct, sys, datetime
 from tqdm import tqdm
 
 from utils.corpora import load_vocab
@@ -52,9 +52,11 @@ def main(argv):
     print(f'Input vocab file is {args["vocabfile"]}')
     print(f'Input embedding file is {args["embedfile"]}')
     print(f'Output matrix file is {args["outfile"]}')
-    M = build_embedding_matrix(args["vocabfile"], args["embedfile"])
+    M = build_embeddings_matrix(args["vocabfile"], args["embedfile"])
     np.save(args["outfile"], M)
 
 
 if __name__ == "__main__":
+    print("START -- ", datetime.datetime.now())
     main(sys.argv[1:])
+    print("END -- ", datetime.datetime.now())

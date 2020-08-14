@@ -53,7 +53,7 @@ def build_cooc_matrix(vocab_file, cooc_file):
     There must be (i,j) for every (j,i) such that C[i,j]=C[j,i]
     """
     str2idx, idx2str, str2count = load_vocab(vocab_file)
-    V = len(str2idx)  # vocab size
+    V = max(str2idx.values())  # vocab size (largest word index)
     size_crec = sizeof(CREC)  # crec: structura de coocucrrencia en Glove
     C = IncrementalCOOMatrix((V+1, V+1))
     # C = scipy.sparse.coo_matrix((V+1, V+1), dtype=np.double)

@@ -1,19 +1,19 @@
 import numpy as np
 import pandas as pd
-import os, struct
+import os, struct, datetime
 
-from utils.corpora import load_vocab
-from utils.embeddings import get_embeddings
-from utils.metrics_glove import bias_byword
+from scripts.utils.corpora import load_vocab
+from metrics.glove import bias_byword
 
 #%% Corpus parameters
-VOCAB_FILE = "embeddings/vocab-C0-V20.txt" # wikipedia dump = C0
-EMBED_FILE = "embeddings/vectors-C0-V20-W8-D1-D50-R0.05-E100-S1.bin" # wikipedia dump = C0
+VOCAB_FILE = "embeddings/vocab-C3-V20.txt" # wikipedia dump = C0
+EMBED_FILE = "embeddings/vectors-C3-V20-W8-D1-D100-R0.05-E150-S1.npy" # wikipedia dump = C0
 
 #%% Estereotipos parameters
-TARGET_A = 'MALE'
-TARGET_B = 'FEMALE'
-CONTEXT = 'SCIENCE'
+TARGET_A = 'CHRISTIANITY'
+TARGET_B = 'ISLAM'
+
+print("START:", datetime.datetime.now())
 
 #%% Read all Estereotipos
 words_lists = dict()
@@ -23,22 +23,17 @@ for f in os.listdir('words_lists'):
 
 #%% Load corpus vocab dicts
 str2idx, idx2str, str2count = load_vocab(vocab_file=VOCAB_FILE)
+embed_matrix = np.load(EMBED_FILE)
 
-#%% create embeddings of target words
+#%% words lists
 words_a = words_lists[TARGET_A]
 words_b = words_lists[TARGET_B]
 words_context = [w for w in str2count.keys() if w not in words_a + words_b]
-vectors_target = get_embeddings(words_a + words_b, str2idx, embed_file=EMBED_FILE)
-# normaliza embeddings
-for word, vec in vectors_target.items():
-    vectors_target[word] = vec / np.linalg.norm(vec)
-# embedding promedio de cada target
-vector_avg_a = np.mean(np.array([vectors_target[w] for w in words_a]), axis=0)
-vector_avg_b = np.mean(np.array([vectors_target[w] for w in words_b]), axis=0)
 
 #%% relative norm difference by word
-result = bias_byword(vector_avg_a, vector_avg_b, words_context, str2idx, str2count
-                ,embed_file=EMBED_FILE)
+print("Computing bias wrt each context word...")
+result = bias_byword(
+    embed_matrix, words_a, words_b, words_context, str2idx, str2count)
 most_biased = result.\
                 sort_values(['rel_norm_distance','freq'], ascending=[False, False]). \
                 head(20)
@@ -46,8 +41,8 @@ least_biased = result.\
                 sort_values(['rel_norm_distance','freq'], ascending=[True, False]). \
                 head(20)
 
-#%% save pickle results
-result.to_pickle(f'results/pkl/garg_byword_{TARGET_A}-{TARGET_B}.pkl')
+#%% save csv results
+result.to_csv(f'results/pkl/garg_byword_{TARGET_A}-{TARGET_B}.csv')
 
 #%% print results
 with open(f'results/garg_byword_{TARGET_A}-{TARGET_B}.md', "w") as f:
@@ -59,3 +54,5 @@ with open(f'results/garg_byword_{TARGET_A}-{TARGET_B}.md', "w") as f:
         ,least_biased.to_markdown()
         ,file = f
     )
+
+print("END:", datetime.datetime.now())
