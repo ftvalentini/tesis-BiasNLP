@@ -7,7 +7,7 @@ from scripts.utils.corpora import load_vocab
 from metrics.cooc import pmi, bias_odds_ratio
 
 #%% Corpus parameters
-VOCAB_FILE = "embeddings/vocab-C3-V20.txt" # wikipedia dump = C0
+VOCAB_FILE = "embeddings/vocab-C3-V1.txt" # wikipedia dump = C0
 COOC_FILE = 'embeddings/cooc-C3-V1-W8-D0.npz'
 
 #%% Estereotipos parameters

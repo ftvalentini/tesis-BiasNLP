@@ -33,7 +33,7 @@ words_c = words_lists[CONTEXT]
 print("Computing bias by document...\n")
 result = differential_bias_bydoc(
                 cooc_matrix, words_a, words_b, words_c, str2idx
-                ,metric="pmi", alpha=1.0, window_size=8
+                ,metric="odds_ratio", alpha=1.0, window_size=8
                 ,corpus=CORPUS, corpus_metadata=CORPUS_METADATA)
 
 #%% MOST biased

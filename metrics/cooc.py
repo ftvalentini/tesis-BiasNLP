@@ -4,7 +4,7 @@ import json
 from scipy.stats import norm, chi2_contingency
 from tqdm import tqdm
 
-from .utils.coocurrence import create_cooc_matrix
+from .utils.coocurrence import create_cooc_matrix, create_cooc_matrix2
 
 
 def pmi(cooc_matrix, words_target, words_context, str2idx, alpha=1.0):
@@ -75,11 +75,10 @@ def bias_pmi(cooc_matrix, words_target_a, words_target_b, words_context, str2idx
     return bias
 
 
-def bias_odds_ratio(cooc_matrix, words_target_a, words_target_b, words_context,
-                    str2idx, ci_level=None):
-    """ Return bias OddsRatio A/B between 2 sets of target words (A B) and a set of \
-    context words.
-    If ci_level: return confidence interval at ci_level (oddsr, lower, upper)
+def odds_ratio_counts(cooc_matrix, words_target_a, words_target_b, words_context,
+                      str2idx):
+    """ Return coocurrence counts used to compute OddsRatio A/B \
+    between 2 sets of target words (A B) and a set of context words.
     """
     C = cooc_matrix
     # indices
@@ -94,15 +93,27 @@ def bias_odds_ratio(cooc_matrix, words_target_a, words_target_b, words_context,
     notcontext_a = C[idx_a,:][:,idx_notc].sum()
         # notcontext_a = C[idx_a,:].sum() - context_a # EQUIVALENTE a linea anterior
     notcontext_b = C[idx_b,:][:,idx_notc].sum()
+    return (context_a, notcontext_a, context_b, notcontext_b)
+
+
+def bias_odds_ratio(cooc_matrix, words_target_a, words_target_b, words_context,
+                    str2idx, ci_level=None):
+    """ Return bias OddsRatio A/B between 2 sets of target words (A B) \
+    and a set of context words
+    If ci_level: return confidence interval at ci_level (oddsr, lower, upper)
+    """
+    context_a, notcontext_a, context_b, notcontext_b = \
+        odds_ratio_counts(
+            cooc_matrix, words_target_a, words_target_b, words_context, str2idx)
     result = odds_ratio(
         context_a, notcontext_a, context_b, notcontext_b, ci_level=ci_level)
-    return result
+    return np.log(result)
 
 
 def differential_bias_bydoc(cooc_matrix
                             ,words_target_a, words_target_b, words_context
                             ,str2idx
-                            ,metric="pmi"
+                            ,metric="odds_ratio"
                             ,alpha=1.0, window_size=8
                             ,corpus="corpora/simplewikiselect.txt"
                             ,corpus_metadata='corpora/simplewikiselect.meta.json'
@@ -117,15 +128,22 @@ def differential_bias_bydoc(cooc_matrix
         - metric: "pmi", "odds_ratio"
         - str2idx: el mismo that was used to build cooc_matrix
     """
+    # computa coocurrence counts globales
+    context_a, notcontext_a, context_b, notcontext_b = \
+        odds_ratio_counts(
+            cooc_matrix, words_target_a, words_target_b, words_context, str2idx)
+    global_counts = (context_a, notcontext_a, context_b, notcontext_b)
     # computa bias global
-    def bias_total(cooc_matrix, str2idx, metric=metric):
-        if metric == "pmi":
-            return bias_pmi(cooc_matrix, words_target_a, words_target_b \
-                            , words_context, str2idx, alpha=alpha)
-        elif metric == "odds_ratio":
-            return bias_odds_ratio(cooc_matrix, words_target_a, words_target_b \
-                            , words_context, str2idx)
-    bias_global = bias_total(cooc_matrix, str2idx, metric)
+    if metric == "odds_ratio":
+        bias_global = np.log(odds_ratio(*global_counts, ci_level=None))
+    elif metric == "pmi":
+        return # not yet implemented
+    # words indices (to get them only once)
+    idx_a = [str2idx[w] for w in words_target_a] # target A indices
+    idx_b = [str2idx[w] for w in words_target_b] # target B indices
+    idx_c = [str2idx[w] for w in words_context] # context indices
+    idx_notc = [str2idx[w] for w in str2idx.keys() \
+                                    if w not in words_context] # not context indices
     # sets of words to test intersection with docs
     words_list = words_target_a + words_target_b + words_context
     words_target = set(words_target_a) | set(words_target_b)
@@ -148,21 +166,25 @@ def differential_bias_bydoc(cooc_matrix
             # si no hay words target --> not parse:
             if not bool(set(tokens_doc) & words_target):
                 continue
-            doc_metadata = [d for d in docs_metadata if d['line'] == i][0]
             # compute sparse cooc_matrix of same shape as full matrix
                 # only with counts for words in words_list
-            cooc_matrix_i = create_cooc_matrix(
+            C_i = create_cooc_matrix2(
                 doc, words_list, str2idx, window_size=window_size)
-            # update cooc global
-            cooc_matrix_new = cooc_matrix - cooc_matrix_i
-            # compute new bias
-            bias_global_new = bias_total(cooc_matrix_new, str2idx, metric)
-            # Differential bias
-            diff_bias = bias_global - bias_global_new
-            # make results DataFrame
-            result['id'].append(doc_metadata['id'])
+            # doc odds ratio counts
+            doc_counts = (
+                C_i[idx_a,:][:,idx_c].sum(), C_i[idx_b,:][:,idx_c].sum()
+                , C_i[idx_a,:][:,idx_notc].sum(), C_i[idx_b,:][:,idx_notc].sum()
+            )
+            # global counts menos doc counts
+            diff_counts = tuple(
+                            [x[0]-x[1] for x in zip(global_counts, doc_counts)])
+            # diferencia entre bias global y bias con diff_counts
+            diff_bias = bias_global - \
+                                np.log(odds_ratio(*diff_counts, ci_level=None))
+            # make results DataFrame (docs_metadata is ordered by line)
+            result['id'].append(docs_metadata[i]['id'])
             result['line'].append(i)
-            result['name'].append(doc_metadata['name'])
+            result['name'].append(docs_metadata[i]['name'])
             result['diff_bias'].append(diff_bias)
     pbar.close()
     return pd.DataFrame(result)
@@ -229,8 +251,10 @@ def bias_byword(cooc_matrix, words_target_a, words_target_b, words_context, str2
         lambda d: odds_(d['count_context_a'], d['count_notcontext_a'] \
                         ,d['count_context_b'], d['count_notcontext_b']
                         , ci_level=ci_level), axis=1)
-    df_odds.columns = ['odds_ratio','upper','lower','pvalue']
+    df_odds.columns = ['odds_ratio','lower','upper','pvalue']
     df_odds['log_odds_ratio'] = np.log(df_odds['odds_ratio'])
+    df_odds['log_lower'] = np.log(df_odds['lower'])
+    df_odds['log_upper'] = np.log(df_odds['upper'])
     # final result
     result = pd.concat([df, df_odds], axis=1)
     return result
