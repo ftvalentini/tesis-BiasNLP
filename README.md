@@ -1,22 +1,36 @@
-STEPS:
 
-0. `make -C "GloVe"`: run once and for all to build GloVe from source so that it can be executed
+## Measuring stereotypes in corpora
 
-1. `python scripts/00-make_wiki_corpus.py <input_wiki_file> <output_file>`: makes txt corpus out of wikipedia dump `.bz` file in `/corpora` -- must determine `MAX_WC` `ARTICLE_MIN_WC` `ARTICLE_MAX_WC` in script. Outputs a .txt corpus, a .meta.txt with corpus info and .meta.json with documents' info. `<output_file>` must not have extension.
-2. `scripts/01-cooc.sh scripts/cooc.config <corpus_dir> <results_dir>`: builds .bin with coocurrence counts and .txt with vocabulary. Must specify `DISTANCE_WEIGHTING=0` in .config so that cooc. counts are raw. If `VOCAB_MIN_COUNT=1` then all words are part of window. 
-3. `scripts/01-embed.sh scripts/glove.config`: trains GloVe and saves them in .bin. Set `DISTANCE_WEIGHTING=1` in .config so that cooc. counts are normalized as done in vanilla GloVe.
-4. run some tests in `/tests` and print results to some `.md`
+### Comparison between co-coocurrence-based metrics and embedding-based metrics
+
+Follow these steps to create the data needed to run tests. Code was tested with English and Simple English wikipedias (`simplewiki-20200620-pages-articles-multistream,xml.bz2` from https://dumps.wikimedia.org/simplewiki/ and `enwiki-20200701-pages-articles-multistream.xml.bz2` from https://dumps.wikimedia.org/simplewiki/).
+
+0. Build GloVe from source so that it can be executed
+`make -C "GloVe"` (run only once)
+
+1. Build txt corpus out of wikipedia dump `.bz` file
+`python scripts/00-make_wiki_corpus.py <input_wiki_file> <output_file>`: outputs a .txt corpus, a .meta.txt with corpus info and .meta.json with documents' info. Must determine `MAX_WC` `ARTICLE_MIN_WC` `ARTICLE_MAX_WC` in script `<output_file>` must not have extension.
+
+2. Build co-ocurrence matrix and vocabulary
+`scripts/01-cooc.sh scripts/cooc.config <corpus_dir> <results_dir>`: builds `.bin` with coocurrence counts and `.txt` with vocabulary. Must specify `DISTANCE_WEIGHTING=0` in `cooc.config` so that co-ocurrence counts are raw. If `VOCAB_MIN_COUNT=1` then all words are part of window.
+
+3. Train GloVe
+`scripts/01-embed.sh scripts/glove.config`: trains word embeddings and saves them in `.bin`. Set `DISTANCE_WEIGHTING=1` in `glove.config` so that co-ocurrence counts are normalized as done in vanilla GloVe.
+
+<!-- ** poner la creacion de matriz de embeddings **
+** poner las corridas de PMI **
+** poner los tests ** -->
+<!-- run tests with relative norm distance bias (Garg et al 2018): -->
+
+### Bias gradient in GloVe
+
+1. Save all GloVe vectors (word vectors, context vectors and both biases) as tuple in `.pkl`
+`python scripts/build_glove_full_vectors.py <vocab_file.txt> <embed_file.bin> <out_file.pkl>`
+
+
 
 **TODO**
-- Las coocs de glove para una palabra no suman la frecuencia (ver Notes) --> ¿como calculamos entonces PMI y OddsRatio? Como hacemos la matriz de cooc?
-  - Si calculamos PMI con
-    - numerador: prob condicional = (todas las cooc (c,t) en window) / (todas las posibles cooc en window)
-    - denominador: frec context / frec total vocab
-    NO SIRVE porque la prob del numerador da muy baja
-    ENTONCES parece que la cooc de glove no sirve --> necesitamos cooc matrix que solo sume cuando context está en la ventana pero no la cantidad de veces que aparece
-- check que cooc dict siempre tenga (i,j) y (j,i)
-- handlear correctamente las words out of vocab (prints en las funciones)
-- validar bootstrap interval de Garg
+- Pensar: los resultados de glove vs pmi pueden tener que ver con que GloVe mide cooc excluyendo a las palabras out of vocab? (es decir, elimina estas palabras y LUEGO mide coocurrencias en ventanas de tamaño window_size que solo tienen a las palabras del vocab). Además GloVe usa distance weighting.
 
 
 Notes:
@@ -29,6 +43,7 @@ Notes:
   - https://stackoverflow.com/questions/25705726/bash-gcc-command-not-found-using-cygwin-when-compiling-c
   - https://cygwin.com/install.html
 - downloaded `simplewiki-20200620-pages-articles-multistream.xml.bz2` from https://dumps.wikimedia.org/simplewiki/
+- out of vocab: "sunnites" "peeved"
 
 
 Code references:
