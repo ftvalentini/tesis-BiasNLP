@@ -1,7 +1,8 @@
 import numpy as np
 import pandas as pd
 import json
-from scipy.stats import norm, chi2_contingency
+from scipy.stats import norm
+import statsmodels.api as sm
 from tqdm import tqdm
 
 from .utils.coocurrence import create_cooc_matrix, create_cooc_matrix2
@@ -35,33 +36,18 @@ def pmi(cooc_matrix, words_target, words_context, str2idx, alpha=1.0):
     return pmi
 
 
-def odds_ratio(counts_a, counts_not_a, counts_b, counts_not_b, ci_level=None):
-    """Return Odds Ratio of counts_a, counts_not_a, counts_b, counts_not_b
-    words_context using cooc dict and str2count
+def log_oddsratio(counts_a, counts_not_a, counts_b, counts_not_b, ci_level=None):
+    """Return log Odds Ratio of counts_a, counts_not_a, counts_b, counts_not_b
     If ci_level: return (oddsratio, lower, upper, pvalue)
     """
-    if (counts_a == 0) & (counts_b == 0):
-        return float("nan")
-    elif counts_b == 0:
-        return float("inf")
-    elif counts_a == 0:
-        return float("-inf")
-    else:
-        odds_ratio = (counts_a/counts_not_a) / (counts_b/counts_not_b)
-    # ODDS ratio variance, CI and pvalue
+    table = np.array([[counts_a, counts_not_a], [counts_b, counts_not_b]])
+    t22 = sm.stats.Table2x2(table, shift_zeros=True)
+    log_odds_ratio = t22.log_oddsratio
     if ci_level:
-        log_odds_variance = \
-            (1/counts_a) + (1/counts_not_a) + (1/counts_b) + (1/counts_not_b)
-        qt = norm.ppf(1 - (1 - ci_level) / 2)
-        lower = np.exp(np.log(odds_ratio) - qt * np.sqrt(log_odds_variance))
-        upper = np.exp(np.log(odds_ratio) + qt * np.sqrt(log_odds_variance))
-        def chisq_pvalue(a, not_a, b, not_b):
-            matriz = np.array([[a, not_a], [b, not_b]])
-            chi2, pv, dof, ex = chi2_contingency(matriz, correction=False)
-            return pv
-        pvalue = chisq_pvalue(counts_a, counts_not_a, counts_b, counts_not_b)
-        return odds_ratio, lower, upper, pvalue
-    return odds_ratio
+        lower, upper = t22.log_oddsratio_confint(alpha=1-ci_level, method="normal")
+        pvalue = t22.log_oddsratio_pvalue()
+        return log_odds_ratio, lower, upper, pvalue
+    return log_odds_ratio
 
 
 def bias_pmi(cooc_matrix, words_target_a, words_target_b, words_context, str2idx,
@@ -75,8 +61,8 @@ def bias_pmi(cooc_matrix, words_target_a, words_target_b, words_context, str2idx
     return bias
 
 
-def odds_ratio_counts(cooc_matrix, words_target_a, words_target_b, words_context,
-                      str2idx):
+def contingency_counts(cooc_matrix, words_target_a, words_target_b, words_context,
+                       str2idx):
     """ Return coocurrence counts used to compute OddsRatio A/B \
     between 2 sets of target words (A B) and a set of context words.
     """
@@ -96,24 +82,24 @@ def odds_ratio_counts(cooc_matrix, words_target_a, words_target_b, words_context
     return (context_a, notcontext_a, context_b, notcontext_b)
 
 
-def bias_odds_ratio(cooc_matrix, words_target_a, words_target_b, words_context,
+def bias_logoddsratio(cooc_matrix, words_target_a, words_target_b, words_context,
                     str2idx, ci_level=None):
-    """ Return bias OddsRatio A/B between 2 sets of target words (A B) \
+    """ Return bias log(OddsRatio) A/B between 2 sets of target words (A B) \
     and a set of context words
     If ci_level: return confidence interval at ci_level (oddsr, lower, upper)
     """
     context_a, notcontext_a, context_b, notcontext_b = \
-        odds_ratio_counts(
+        contingency_counts(
             cooc_matrix, words_target_a, words_target_b, words_context, str2idx)
-    result = odds_ratio(
+    result = log_oddsratio(
         context_a, notcontext_a, context_b, notcontext_b, ci_level=ci_level)
-    return np.log(result)
+    return result
 
 
 def differential_bias_bydoc(cooc_matrix
                             ,words_target_a, words_target_b, words_context
                             ,str2idx
-                            ,metric="odds_ratio"
+                            ,metric="log_oddsratio"
                             ,alpha=1.0, window_size=8
                             ,corpus="corpora/simplewikiselect.txt"
                             ,corpus_metadata='corpora/simplewikiselect.meta.json'
@@ -129,13 +115,11 @@ def differential_bias_bydoc(cooc_matrix
         - str2idx: el mismo that was used to build cooc_matrix
     """
     # computa coocurrence counts globales
-    context_a, notcontext_a, context_b, notcontext_b = \
-        odds_ratio_counts(
+    global_counts = contingency_counts(
             cooc_matrix, words_target_a, words_target_b, words_context, str2idx)
-    global_counts = (context_a, notcontext_a, context_b, notcontext_b)
     # computa bias global
-    if metric == "odds_ratio":
-        bias_global = np.log(odds_ratio(*global_counts, ci_level=None))
+    if metric == "log_oddsratio":
+        bias_global = log_oddsratio(*global_counts, ci_level=None)
     elif metric == "pmi":
         return # not yet implemented
     # words indices (to get them only once)
@@ -151,7 +135,8 @@ def differential_bias_bydoc(cooc_matrix
     with open(corpus_metadata, "r", encoding="utf-8") as f:
         docs_metadata = json.load(f)['index']
     # for each doc: read metadata + read doc + cooc_matrix + differential bias
-    result = {'id': [], 'line': [], 'name': [], 'diff_bias': []}  # init results dict
+    # init results dict
+    result = {'id': [], 'line': [], 'name': [], 'diff_bias': []}
     i = -1  # init doc counter
     pbar = tqdm(total=len(docs_metadata))
     with open(corpus, "r", encoding="utf-8") as f:
@@ -180,7 +165,7 @@ def differential_bias_bydoc(cooc_matrix
                             [x[0]-x[1] for x in zip(global_counts, doc_counts)])
             # diferencia entre bias global y bias con diff_counts
             diff_bias = bias_global - \
-                                np.log(odds_ratio(*diff_counts, ci_level=None))
+                                log_oddsratio(*diff_counts, ci_level=None)
             # make results DataFrame (docs_metadata is ordered by line)
             result['id'].append(docs_metadata[i]['id'])
             result['line'].append(i)
@@ -193,7 +178,7 @@ def differential_bias_bydoc(cooc_matrix
 def bias_byword(cooc_matrix, words_target_a, words_target_b, words_context, str2idx
                 ,ci_level=.95):
     """
-    Return DataFrame with Odds Ratio A/B for each word in words_context \
+    Return DataFrame with log(OddsRatio) A/B for each word in words_context \
     and the relevant coocurrence counts
     """
     # handling target words out of vocab
@@ -208,7 +193,8 @@ def bias_byword(cooc_matrix, words_target_a, words_target_b, words_context, str2
     # words indices
     idx_a = [str2idx[w] for w in words_target_a if w not in words_outof_vocab]
     idx_b = [str2idx[w] for w in words_target_b if w not in words_outof_vocab]
-    idx_c = sorted([str2idx[w] for w in words_context if w not in words_outof_vocab])
+    idx_c = sorted(
+            [str2idx[w] for w in words_context if w not in words_outof_vocab])
         # words context siempre sorted segun indice!!!
     # frecuencias
     print("Computing counts...\n")
@@ -245,16 +231,14 @@ def bias_byword(cooc_matrix, words_target_a, words_target_b, words_context, str2
     df['count_notcontext_b'] = counts_notcontext_b.T
     # add calculo de odds ratio
     print("Computing Odds Ratios...\n")
-    def odds_(a, b, c, d, ci_level):
-        return pd.Series(odds_ratio(a, b, c, d, ci_level=ci_level))
+    def log_oddsratio_(a, b, c, d, ci_level):
+        return pd.Series(log_oddsratio(a, b, c, d, ci_level=ci_level))
     df_odds = df.apply(
-        lambda d: odds_(d['count_context_a'], d['count_notcontext_a'] \
-                        ,d['count_context_b'], d['count_notcontext_b']
-                        , ci_level=ci_level), axis=1)
-    df_odds.columns = ['odds_ratio','lower','upper','pvalue']
-    df_odds['log_odds_ratio'] = np.log(df_odds['odds_ratio'])
-    df_odds['log_lower'] = np.log(df_odds['lower'])
-    df_odds['log_upper'] = np.log(df_odds['upper'])
+        lambda d: log_oddsratio_(d['count_context_a'], d['count_notcontext_a'] \
+                                ,d['count_context_b'], d['count_notcontext_b']
+                                , ci_level=ci_level), axis=1)
+    df_odds.columns = ['log_oddsratio','lower','upper','pvalue']
+    df_odds['odds_ratio'] = np.exp(df_odds['log_oddsratio'])
     # final result
     result = pd.concat([df, df_odds], axis=1)
     return result
