@@ -9,6 +9,7 @@ def read_glove_vectors(vocab_file, embed_file):
     """
     Read weights of glove .bin embed_file
     Returns (W, b_w, U, b_u) [word vectors, w biases, context vectors, biases]
+    Matrices are of shape V x d (d: dimension, V: vocab size)
     Notas:
     hay dos vectores por word + 2 vectores constantes (biases)
     el bin esta ordenado por indice -- tienen vector dim d+1 (bias)
@@ -20,20 +21,20 @@ def read_glove_vectors(vocab_file, embed_file):
     n_weights = os.path.getsize(embed_file) // 8 # 8 bytes per double
     embed_dim = (n_weights - 2*V) // (2*V)
     # init arrays
-    W = np.full((embed_dim, V+1), np.nan) # word vectors
+    W = np.full((V+1, embed_dim), np.nan) # word vectors
     b_w = np.full(V+1, np.nan) # word vectors' biases
-    U = np.full((embed_dim, V+1), np.nan) # context vectors
+    U = np.full((V+1, embed_dim), np.nan) # context vectors
     b_u = np.full(V+1, np.nan) # context vectors' biases
     # first word index (should be 1)
     first_i = min(list(idx2str.keys()))
     with open(embed_file, 'rb') as f:
         # read word vectors and bias
         for i in range(first_i, V+1):
-            W[:,i] = struct.unpack('d'*embed_dim, f.read(8*embed_dim))
+            W[i,:] = struct.unpack('d'*embed_dim, f.read(8*embed_dim))
             b_w[i] = struct.unpack('d'*1, f.read(8*1))[0] # 'd' for double
         # read context vectors and bias
         for i in range(first_i, V+1):
-            U[:,i] = struct.unpack('d'*embed_dim, f.read(8*embed_dim))
+            U[i,:] = struct.unpack('d'*embed_dim, f.read(8*embed_dim))
             b_u[i] = struct.unpack('d'*1, f.read(8*1))[0] # 'd' for double
     return W, b_w, U, b_u
 
