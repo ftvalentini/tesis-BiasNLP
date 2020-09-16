@@ -1,0 +1,9 @@
+with embeddings/vocab-C3-V1.txt :
+ 
+### PMI and Odds Ratio 
+ - pmi(ECUADOR,COCAINE) = 1.3197512798207358
+ - pmi(EUROPE,COCAINE) = 0.10991322352702107
+ - diff_pmi = 1.2098380562937148
+ - logOddsRatio = 1.2098569032565052
+ - CI-logOddsRatio = 0.026401279456230362 -- 2.3933125270567803
+
