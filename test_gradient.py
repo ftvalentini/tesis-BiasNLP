@@ -25,12 +25,69 @@ X = scipy.sparse.load_npz(COOC_FILE)
 
 #%% PARAMS
 word_context = "cocaine"
-words_target_a = ['ecuador']# ,'him','his','himself']
+words_target_a = ['colombia']# ,'him','his','himself']
 words_target_b = ['europe']#,'her','hers','herself']
 # words indices
 idx_c = str2idx[word_context]
 idx_a = sorted([str2idx[w] for w in words_target_a])
 idx_b = sorted([str2idx[w] for w in words_target_b])
+
+#%% Bias Gradient total
+
+bias_grad = bias_gradient(idx_c, idx_a, idx_b, W, U, b_w, b_u, X)
+
+# check simetria
+bias_grad[idx_c, idx_a[0]]
+bias_grad[idx_a[0], idx_c]
+bias_grad[idx_c, idx_b[0]]
+bias_grad[idx_b[0], idx_c]
+# NO DA SIMETRICO :(
+# TODO: revisar por que
+
+# check other important gradients
+bias_grad[idx_c, 1]
+bias_grad[idx_c, 2]
+
+
+
+def top_bottom_cells(bias_gradient_matrix, k=50):
+    """Return dict of indices and values of top and bottom
+    K gradients of cooc matrix"""
+    ii, jj, vv = scipy.sparse.find(bias_gradient_matrix) # nonzero indices, columns and values
+    # top
+    idx_top = np.argpartition(vv, -k)[-k:] # top n values
+    idx_top = idx_top[np.argsort(-vv[idx_top])] # sort from largest to lowest
+    top = {(ii[idx], jj[idx]): vv[idx] for idx in idx_top}
+    # bottom
+    idx_bottom = np.argpartition(vv, k)[:k] # top n values
+    idx_bottom = idx_bottom[np.argsort(vv[idx_bottom])] # sort from largest to lowest
+    bottom = {(ii[idx], jj[idx]): vv[idx] for idx in idx_bottom}
+    return top, bottom
+
+# largest gradients
+top_cells, bottom_cells = top_bottom_cells(bias_grad, 50)
+{(idx2str[k[0]], idx2str[k[1]]): v for k, v in top_cells.items() }
+{(idx2str[k[0]], idx2str[k[1]]): v for k, v in bottom_cells.items() }
+
+# check coocs
+X[idx_c, idx_a[0]]
+X[idx_a[0], idx_c]
+X[idx_c, idx_b[0]]
+X[idx_b[0], idx_c]
+
+X[idx_a[0], str2idx['friederich']]
+# NOTE: colombia nunca coocurre con friederich y sin embargo tiene grad alto!!!
+# no se deberia poder computar segun Brunet SP
+# TODO: revisar esto!!!
+
+### palabras que mas coocurren con word i:
+i = str2idx['cocaine']
+top_j = np.argsort(-X[i,:].toarray())[0]
+[idx2str[j] for j in top_j[:20]]
+###
+
+# no se puede hacer el mismo analisis para si avanzar por gradiente
+# cambia el bias
 
 #%% Gradient Bias-W
 
@@ -69,6 +126,8 @@ idx_b = sorted([str2idx[w] for w in words_target_b])
 # # (no se comparan bias entre palabras)
 # ###
 
+#%% ETC
+
 # TODO: revisar dimension de gradient
 
 def Li(Wi, Yi, Xi, b_wi, Uj, b_uj):
@@ -98,117 +157,11 @@ out[:,Ji] = grad_wi_x
 
 
 
-#%% Gradient Bias-X
-
-# no se puede hacer el mismo analisis para si avanzar por gradiente
-# cambia el bias
-
-# TODO: ver porque no es simetrico el gradient
-
-bias_grad = bias_gradient(idx_c, idx_a, idx_b, W, U, b_w, b_u, X)
-
-
-def top_bottom_cells(bias_gradient_matrix, k=50):
-    """Return dict of indices and values of top and bottom
-    K gradients of cooc matrix"""
-    ii, jj, vv = scipy.sparse.find(bias_gradient_matrix) # nonzero indices, columns and values
-    # top
-    idx_top = np.argpartition(vv, -k)[-k:] # top n values
-    idx_top = idx_top[np.argsort(-vv[idx_top])] # sort from largest to lowest
-    top = {(ii[idx], jj[idx]): vv[idx] for idx in idx_top}
-    # bottom
-    idx_bottom = np.argpartition(vv, k)[:k] # top n values
-    idx_bottom = idx_bottom[np.argsort(vv[idx_bottom])] # sort from largest to lowest
-    bottom = {(ii[idx], jj[idx]): vv[idx] for idx in idx_bottom}
-    return top, bottom
-
-
-top_cells, bottom_cells = top_bottom_cells(bias_grad, 50)
-{(idx2str[k[0]], idx2str[k[1]]): v for k, v in top_cells.items() }
-{(idx2str[k[0]], idx2str[k[1]]): v for k, v in bottom_cells.items() }
-
-
-X[idx_c, idx_a[0]]
-X[idx_c, idx_b[0]]
-X[idx_a[0], idx_c]
-X[idx_b[0], idx_c]
-
-bias_grad[idx_c, idx_a[0]]
-bias_grad[idx_c, idx_b[0]]
-bias_grad[idx_a[0], idx_c]
-bias_grad[idx_b[0], idx_c]
-
-X[idx_c, 2]
-X[idx_c, 1]
-bias_grad[idx_c, 2]
-bias_grad[idx_c, 1]
-
-
-X[idx_c, str2idx['vulgate']]
-X[idx_b[0], str2idx['vulgate']]
-
-
-
-
 # indices = [idx_c] + idx_a + idx_b
 # grad_w_x = csr_matrix((dim, V)) # inicializa matriz
 # for i in indices:
 #     grad_wi_x = gradient_wi_x(W, U, b_w, b_u, X, i)
 #     grad_w_x += grad_wi_x
-
-
-
-
-
-### test: subir por la direccion del gradiente aumenta el bias
-grad_b_w = gradient_bias_w(W, idx_c, idx_a, idx_b)
-W_tmp = W.copy()
-biases_grad = list()
-# A. actualizaciones con gradiente:
-for i in range(10):
-    W_tmp += grad_b_w * 0.1
-    biases_grad.append(bias_rnd(W_tmp, idx_c, idx_a, idx_b))
-biases_grad
-# B. actualizaciones con pesos del gradiente permutados ("random"):
-index = np.arange(W.shape[1])
-np.random.shuffle(index)
-grad_shuffled = grad_b_w[:,index].copy()
-W_tmp = W.copy()
-biases_shuffled = list()
-for i in range(10):
-    W_tmp += grad_shuffled * 0.1
-    biases_shuffled.append(bias_rnd(W_tmp, idx_c, idx_a, idx_b))
-biases_shuffled
-# avanzar por el gradiente hace aumentar y "Mucho"
-# avanzar por random hacer aumentar/caer monotonamente pero "poco"
-# (es monotono porque es una funcion lineal)
-###
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-### no es simetrico!!! :(
-# bias_gradient_matrix[31718, 64]
-# bias_gradient_matrix[64, 31718]
-
-
-
 
 # ### analisis de gradients
 # str2idx['he']
@@ -223,16 +176,6 @@ biases_shuffled
 # sns.scatterplot(x=W[16,:], y=W[64,:])
 # sns.scatterplot(x=W[16,:], y=W[31718,:])
 ###
-
-
-
-
-### palabras que mas coocurren con word i:
-i = str2idx['motherhood']
-top_j = np.argsort(-X[i,:].toarray())[0]
-[idx2str[j] for j in top_j[:20]]
-###
-
 
 # ### chequeo: Coocs mas altas:
 # ii, jj, Xi = find(X)

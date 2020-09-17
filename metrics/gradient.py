@@ -21,9 +21,11 @@ def f_glove(x, x_max=100, alpha=0.75):
 
 def Li(Wi, Yi, Xi, b_wi, Uj, b_uj):
     """Pointwise loss for word i
+    Notas:
+        - se multiplica por V ex-post (cuando se llama la funcion)
     """
     diff = np.dot(Uj, Wi) + b_uj + b_wi - np.log(Xi - Yi)
-    return sum(f_glove(Xi - Yi) * (diff**2))
+    return np.sum(f_glove(Xi - Yi) * (diff**2))
 
 
 def Hi(Uj, Xi):
@@ -77,11 +79,47 @@ def gradient_wi_x(W, U, b_w, b_u, X, i):
     b_uj = b_u[Ji]
     b_wi = b_w[i]
     H1_i = np.linalg.inv(Hi(Uj, Xi))
-    f_loss = lambda w, y: Li(w, y, Xi, b_wi, Uj, b_uj)
+    f_loss = lambda w, y: V * Li(w, y, Xi, b_wi, Uj, b_uj)
     grad_w_y = jacobian(jacobian(f_loss, 0), 1) # grad contra 1er y grad contra el 2do
     jacobian_w_y = grad_w_y(Wi, Yi)
     grad_wi_x = 1/V * np.matmul(H1_i, jacobian_w_y)
     # scipy.sparse para llegar a matriz  final VxV
+    out = lil_matrix((dim, V))
+    out[:,Ji] = grad_wi_x
+    return out.tocsr()
+
+
+def grad_loss_wi(Yi, Wi, Xi, b_wi, Uj, b_uj):
+    """
+    Expresion 11+1 de SP Brunet
+    Notas:
+        - Sirve para usar un solo autodiff (wrt Y) en lugar de 2 (wrt X y dps Y)
+        - Se multiplica por V expost (cuando se llama la funcion)
+    """
+    tmp = 2 * f_glove(Xi-Yi) * (np.dot(Wi, Uj.T) + b_wi + b_uj - np.log(Xi-Yi))
+    return  np.dot(tmp.T, Uj)
+
+
+def gradient_wi_x(W, U, b_w, b_u, X, i):
+    """
+    Version de gradient_wi_x usando la formula Brunet que le sigue a Ec 11
+    en forma matricial
+    Notas:
+        - se chequeo en un test que dan el mismo rdo (ver abajo)
+        - se usa esta porque es mas rapido (solo usa un autodiff en vez de 2)
+    """
+    V, dim = W.shape
+    _, Ji, Xi = find(X[i,:]) # nonzero coocs of word i (indices and values)
+    Wi =  W[i,:]
+    Uj = U[Ji,:]
+    Yi = np.full_like(Xi, 0)
+    b_uj = b_u[Ji]
+    b_wi = b_w[i]
+    H1_i = np.linalg.inv(Hi(Uj, Xi))
+    f_grad_loss_wi = lambda y: V * grad_loss_wi(y, Wi, Xi, b_wi, Uj, b_uj)
+    jacobian_w_y = jacobian(f_grad_loss_wi)(Yi)
+    grad_wi_x = 1/V * np.matmul(H1_i, jacobian_w_y)
+    # scipy.sparse para llegar a matriz DxV (y VxV en el gradient total)
     out = lil_matrix((dim, V))
     out[:,Ji] = grad_wi_x
     return out.tocsr()
@@ -100,6 +138,65 @@ def bias_gradient(idx_c, idx_a, idx_b, W, U, b_w, b_u, X):
     out = grad_bias_w.dot(grad_w_x) # muy pesado sin scipy.sparse
     return out
 
+
+# ### Datos para testear
+# import pickle
+# import scipy.sparse
+# VECTORS_FILE = "../embeddings/full_vectors-C3-V20-W8-D1-D100-R0.05-E150-S1.pkl"
+# COOC_FILE = "../embeddings/cooc-C3-V20-W8-D1.npz"
+# # GloVe word embeddings
+# with open(VECTORS_FILE, 'rb') as f:
+#     W, b_w, U, b_u = pickle.load(f)
+# # Cooc matrix
+# X = scipy.sparse.load_npz(COOC_FILE)
+# ###
+
+# ### test: comparacion grad_yi_x con doble autodiff vs un solo autodiff
+# i = 64 # "she"
+# V, dim = W.shape
+# _, Ji, Xi = find(X[i,:]) # nonzero coocs of word i (indices and values)
+# Wi =  W[i,:]
+# Uj = U[Ji,:]
+# Yi = np.full_like(Xi, 0)
+# b_uj = b_u[Ji]
+# b_wi = b_w[i]
+# # con doble autodiff
+# f_loss = lambda w, y: Li(w, y, Xi, b_wi, Uj, b_uj) * V
+# grad_w_y = jacobian(jacobian(f_loss, 0), 1) # grad vs 1er arg y grad vs 2do arg
+# jacobian_w_y = grad_w_y(Wi, Yi)
+# # con un solo autodiff usando expresion 11+1 del paper
+# def grad_loss_wi(Yi, Wi, Xi, b_wi, Uj, b_uj):
+#     tmp = 2 * f_glove(Xi - Yi) * (np.dot(Wi, Uj.T) + b_wi + b_uj - np.log(Xi - Yi))
+#     return  np.dot(tmp.T, Uj)
+# f_grad_loss_wi = lambda y: grad_loss_wi(y, Wi, Xi, b_wi, Uj, b_uj) * V
+# jacobian_w_y_bis = jacobian(f_grad_loss_wi)(Yi)
+# # DAN IGUAL CUANDO SE MULTIPLICAN AMBAS POR V !!!
+# np.allclose(jacobian_w_y, jacobian_w_y_bis)
+# ###
+
+
+### desarrollo: ec siguiente a la 11 con matrices
+# import numpy as np
+# V = 2 # filas
+# D = 3 # columnas
+# Xi = np.array([2, 3])
+# Yi = np.array([3, 1])
+# Wi = np.array([0.5, 0.5, 0.5])
+# bi = 10
+# c0 = 1
+# c1 = 5
+# U0 = np.array([-2.5, -1.5, -0.5])
+# U1 = np.array([0.5, 1.5, 4.5])
+# U = np.array([U0, U1])
+# c = np.array([c0, c1])
+# # con suma por j
+# rdo0 = (Xi[0] - Yi[0]) * (Wi.dot(U0) + bi + c0 - (Xi[0] - Yi[0])) * U0
+# rdo1 = (Xi[1] - Yi[1]) * (Wi.dot(U1) + bi + c1 - (Xi[1] - Yi[1])) * U1
+# rdo0 + rdo1
+# # con matrices
+# tmp = (Xi - Yi) * (Wi.dot(U.T) + bi + c - (Xi - Yi))
+# np.dot(tmp.T, U)
+###
 
 
 
