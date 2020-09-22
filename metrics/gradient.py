@@ -127,16 +127,23 @@ def gradient_wi_x(W, U, b_w, b_u, X, i):
 
 def bias_gradient(idx_c, idx_a, idx_b, W, U, b_w, b_u, X):
     V, dim = W.shape
-    # GRADIENTE BIAS_W (para toda la matriz de una -- estara ok?)
+    # GRADIENTE BIAS_W (para toda la matriz - en el loop se filtra por word)
     grad_bias_w = gradient_bias_w(W, idx_c, idx_a, idx_b)
     # GRADIENTES W_X (para cada palabra)
     indices = [idx_c] + idx_a + idx_b
-    grad_w_x = csr_matrix((dim, V)) # inicializa matriz
+    bias_grad = csr_matrix((V, V)) # inicializa matriz final
     for i in indices:
+        # Bias_Wi
+        grad_bias_w_i = csr_matrix(grad_bias_w.shape) # grad_bias_w solo para i
+        grad_bias_w_i[i,:] = grad_bias_w[i,:] # grad_bias_w solo para i
+        # Wi_X
         grad_wi_x = gradient_wi_x(W, U, b_w, b_u, X, i)
-        grad_w_x += grad_wi_x
-    out = grad_bias_w.dot(grad_w_x) # muy pesado sin scipy.sparse
-    return out
+        bias_grad += grad_bias_w_i.dot(grad_wi_x) # muy pesado sin scipy.sparse
+    # el bias grad final no se puede obtener como una sola mult al final
+    # porque si no multiplica "coocs" de grad_w_x que no existen con alguna
+    # word de bias_grad
+    # (por ejemplo king-zwac en he-she-king; solo existe he-zwac)
+    return bias_grad
 
 
 # ### Datos para testear
@@ -149,6 +156,17 @@ def bias_gradient(idx_c, idx_a, idx_b, W, U, b_w, b_u, X):
 #     W, b_w, U, b_u = pickle.load(f)
 # # Cooc matrix
 # X = scipy.sparse.load_npz(COOC_FILE)
+# ###
+
+# ### chequeo bias vs resultados previos
+# tmp = pd.read_csv("results/pkl/garg_byword_MALE_SHORT-FEMALE_SHORT.csv")
+# tmp.loc[tmp['word'] == "girlfriend"]
+# bias_0 = bias_rnd(W, idx_c, idx_a, idx_b)
+# W_norm = W / np.linalg.norm(W, axis=1)[:,np.newaxis] # normalize by l2 norm
+# bias_1 = bias_rnd(W_norm, idx_c, idx_a, idx_b)
+# # coinciden cuando se normaliza la matriz por l2 por vector
+# # entiendo q no hace falta esto para bias gradient
+# # (no se comparan bias entre palabras)
 # ###
 
 # ### test: comparacion grad_yi_x con doble autodiff vs un solo autodiff
