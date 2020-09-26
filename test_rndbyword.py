@@ -10,8 +10,8 @@ VOCAB_FILE = "embeddings/vocab-C3-V20.txt" # wikipedia dump = C0
 EMBED_FILE = "embeddings/vectors-C3-V20-W8-D1-D100-R0.05-E150-S1.npy" # wikipedia dump = C0
 
 #%% Estereotipos parameters
-TARGET_A = 'MALE'
-TARGET_B = 'FEMALE'
+TARGET_A = 'MALE_SHORT'
+TARGET_B = 'FEMALE_SHORT'
 
 print("START:", datetime.datetime.now())
 
@@ -42,10 +42,10 @@ least_biased = result.\
                 head(20)
 
 #%% save csv results
-result.to_csv(f'results/pkl/garg_byword_{TARGET_A}-{TARGET_B}.csv', index=False)
+result.to_csv(f'results/csv/rnd_byword_{TARGET_A}-{TARGET_B}.csv', index=False)
 
 #%% print results
-with open(f'results/garg_byword_{TARGET_A}-{TARGET_B}.md', "w") as f:
+with open(f'results/rnd_byword_{TARGET_A}-{TARGET_B}.md', "w") as f:
     print(
         f'with {EMBED_FILE} :\n'
         ,f'\n### Most biased {TARGET_A}/{TARGET_B} \n'

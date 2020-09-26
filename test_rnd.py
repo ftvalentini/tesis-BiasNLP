@@ -9,9 +9,9 @@ VOCAB_FILE = "embeddings/vocab-C3-V20.txt" # wikipedia dump = C0
 EMBED_FILE = "embeddings/vectors-C3-V20-W8-D1-D100-R0.05-E150-S1.npy" # wikipedia dump = C0
 
 #%% Estereotipos parameters
-TARGET_A = 'ECUADOR'
-TARGET_B = 'EUROPE'
-CONTEXT = 'COCAINE'
+TARGET_A = 'MALE_SHORT'
+TARGET_B = 'FEMALE_SHORT'
+CONTEXT = 'CHEF'
 
 print("START:", datetime.datetime.now())
 
@@ -35,7 +35,7 @@ bias_garg = bias_relative_norm_distance(
                             ,ci_bootstrap_iters=200)
 
 #%% print results
-with open(f'results/biasgarg_{TARGET_A}-{TARGET_B}-{CONTEXT}.md', "w") as f:
+with open(f'results/rnd_{TARGET_A}-{TARGET_B}-{CONTEXT}.md', "w") as f:
     print(
         f'with {VOCAB_FILE} :\n'
         ,'\n### Bias by relative norm distance (Garg et al 2018) \n'
