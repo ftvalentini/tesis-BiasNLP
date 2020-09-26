@@ -1,51 +1,155 @@
 
 ## Measuring stereotypes in corpora
 
-### Comparison between co-coocurrence-based metrics and embedding-based metrics
+A comparison between co-coocurrence-based metrics and embedding-based metrics.
 
-Follow these steps to create the data needed to run tests. Code was tested with English and Simple English wikipedias (`simplewiki-20200620-pages-articles-multistream,xml.bz2` from https://dumps.wikimedia.org/simplewiki/ and `enwiki-20200701-pages-articles-multistream.xml.bz2` from https://dumps.wikimedia.org/simplewiki/).
+### Corpus setup
 
-0. Build GloVe from source so that it can be executed
+Follow these steps to create the data needed to run tests. Code was tested with:
+* English wikipedia (`enwiki-20200701-pages-articles-multistream.xml.bz2` from https://dumps.wikimedia.org/simplewiki/)
+* Simple English wikipedia (`simplewiki-20200620-pages-articles-multistream,xml.bz2` from https://dumps.wikimedia.org/simplewiki/)
+
+**(1)** Build txt corpus out of wikipedia dump `.bz` file\
+`python scripts/00-make_wiki_corpus.py <input_wiki_file> <output_file>`
+* must determine `MAX_WC` `ARTICLE_MIN_WC` `ARTICLE_MAX_WC` in script
+* outputs a `.txt` corpus, a `.meta.txt` with corpus info and `.meta.json` with documents' info
+* `<output_file>` must not have extension.
+
+### GloVe setup
+
+**(0)** Build GloVe from source so that it can be executed\
 `make -C "GloVe"` (run only once)
 
-1. Build txt corpus out of wikipedia dump `.bz` file
-`python scripts/00-make_wiki_corpus.py <input_wiki_file> <output_file>`: outputs a .txt corpus, a .meta.txt with corpus info and .meta.json with documents' info. Must determine `MAX_WC` `ARTICLE_MIN_WC` `ARTICLE_MAX_WC` in script `<output_file>` must not have extension.
+**(1)** Train GloVe
+`scripts/01-embed.sh scripts/glove.config`\
+* trains word embeddings and saves them in `.bin`
+* set `DISTANCE_WEIGHTING=1` in `glove.config` so that co-ocurrence counts are normalized as done in vanilla GloVe
+* set `VOCAB_MIN_COUNT=20` so that words are counted as in vanilla GloVe (words with frequency less than 20 are removed and not considered when building windows of `WINDOW_SIZE`)
+* `CORPUS_ID` is defined according to order in `CORPORA` list in `scripts/01-embed.sh`
 
-2. Build co-ocurrence matrix and vocabulary
-`scripts/01-cooc.sh scripts/cooc.config <corpus_dir> <results_dir>`: builds `.bin` with coocurrence counts and `.txt` with vocabulary. Must specify `DISTANCE_WEIGHTING=0` in `cooc.config` so that co-ocurrence counts are raw. If `VOCAB_MIN_COUNT=1` then all words are part of window.
+**(2)** Extract GloVe word vectors matrix\
+`python scripts/02-build_embeddings_matrix.py <vocab_file.txt> <embed_file.bin> <out_file.npy>`
+* Reads `.bin` and saves all vectors (word vectors, context vectors and both biases) as a tuple in a `.npy` file
 
-3. Train GloVe
-`scripts/01-embed.sh scripts/glove.config`: trains word embeddings and saves them in `.bin`. Set `DISTANCE_WEIGHTING=1` in `glove.config` so that co-ocurrence counts are normalized as done in vanilla GloVe.
+Example:
+```
+cd tesis-BiasNLP
+VOCABFILE="embeddings/vocab-C3-V20.txt"
+EMBEDFILE="embeddings/vectors-C3-V20-W8-D1-D100-R0.05-E150-S1.bin"
+OUTFILE="embeddings/vectors-C3-V20-W8-D1-D100-R0.05-E150-S1.npy"
+python3 scripts/02-build_embeddings_matrix.py -v $VOCABFILE -e $EMBEDFILE -o $OUTFILE
+```
 
-<!-- ** poner la creacion de matriz de embeddings **
-** poner las corridas de PMI **
-** poner los tests ** -->
-<!-- run tests with relative norm distance bias (Garg et al 2018): -->
+### Co-ocurrence matrix
+
+**(1)** Build raw co-ocurrence matrix and vocabulary\
+`scripts/01-cooc.sh scripts/cooc.config <corpus_dir> <results_dir>`
+* builds `.bin` with coocurrence counts and `.txt` with vocabulary
+* must specify `DISTANCE_WEIGHTING=0` in `cooc.config` so that co-ocurrence counts are raw (not weighted by distance to center)
+* if `VOCAB_MIN_COUNT=1` then all words are part of window.
+* `CORPUS_ID` is defined according to order in `CORPORA` list in `scripts/01-cooc.sh`
+
+**(2)** Build scipy.sparse co-ocurrence matrix\
+`python scripts/02-build_cooc_matrix.py <vocab_file.txt> <cooc_file.bin> <out_file.npz>`
+* builds a `scipy.sparse.csr_matrix` with co-occurrences stored in `.bin` file
+* matrix is saved as `.npz` file
+
+Example:
+```
+cd tesis-BiasNLP
+VOCABFILE="embeddings/vocab-C3-V1.txt"
+COOCFILE="embeddings/cooc-C3-V1-W8-D0.bin"
+OUTFILE="embeddings/cooc-C3-V1-W8-D0.npz"
+nohup python3 scripts/02-build_cooc_matrix.py -v $VOCABFILE -c $COOCFILE -o $OUTFILE 1>test.out 2>test.err &
+tail -f test.err
+```
+### Relative norm distance bias (RND)
+
+Get the value of RND bias in corpus for given sets of target and context words (for example, `MALE`, `FEMALE` and `SCIENCE`)
+
+**(1)** Set parameters in `test_rnd.py`
+* `TARGET_A`,`TARGET_B`,`CONTEXT` are names of word lists in `words_lists/`
+
+**(2)** Get value of relative norm distance\
+`python test_rnd.py`
+* Results are saved as `.md` in `results/`
+
+### RND by word
+
+Get the RND bias of each word in vocabulary with respect to a given set of target groups (for example, `MALE` and `FEMALE`)
+
+**(1)** Set parameters in `test_rnd.py`
+* `TARGET_A`,`TARGET_B` are names of target word lists in `words_lists/`
+
+**(2)** Get value of relative norm distance for each word with respect to the two groups of target words\
+`python test_rndbyword.py`
+* Results are saved as `.md` and `.csv` in `results/`
+
+### Differential PMI bias (DPMI)
+
+Get the value of DPMI bias in corpus for given sets of target and context words (for example, `MALE`, `FEMALE` and `SCIENCE`)
+
+**(1)** Set parameters in `test_dpmi.py`
+* `TARGET_A`,`TARGET_B`,`CONTEXT` are names of word lists in `words_lists/`
+
+**(2)** Get values of diff. PMI and log-OddsRatio approximation\
+`python test_dpmi.py`
+* Results are saved as `.md` in `results/`
+
+### DPMI bias by word
+
+Get the DPMI bias of each word in vocabulary with respect to a given set of target groups (for example, `MALE` and `FEMALE`)
+
+**(1)** Set parameters in `test_dpmi.py`
+* `TARGET_A`,`TARGET_B` are names of target word lists in `words_lists/`
+
+**(2)** Get values of DPMI and log-OddsRatio for each word with respect to the two groups of target words\
+`python test_dpmibyword.py`
+* Results are saved as `.md` and `.csv` in `results/`
+
+### Stopwords and frequency analysis
+
+Analyse the relationship between:
+a) bias of each word as measured by DPMI and RND with respect to predefined sets of target words (for example, `MALE` and `FEMALE`)
+b) stopwords and word frequency
+
+**(1)** Run `test_rndbyword.py` and `test_dpmibyword.py`
+* `TARGET_A`,`TARGET_B` are names of target word lists in `words_lists/`
+
+**(2)** Get plots to describe the relationship between RND, DPMI, stopwords and frequency
+* plots are saved in `results/plots/`
 
 ### Bias gradient in GloVe
 
-1. Save all GloVe vectors (word vectors, context vectors and both biases) as tuple in `.pkl`
-`python scripts/build_glove_full_vectors.py <vocab_file.txt> <embed_file.bin> <out_file.pkl>`
+**(1)** Extract all GloVe vectors\
+`python scripts/02-build_glove_full_vectors.py <vocab_file.txt> <embed_file.bin> <out_file.pkl>`
+* Reads `.bin` and saves all vectors (word vectors, context vectors and both biases) as a tuple in a `.pkl`
 
+Example:
+```
+cd tesis-BiasNLP
+VOCABFILE="embeddings/vocab-C3-V20.txt"
+EMBEDFILE="embeddings/vectors-C3-V20-W8-D1-D100-R0.05-E150-S1.bin"
+OUTFILE="embeddings/full_vectors-C3-V20-W8-D1-D100-R0.05-E150-S1.pkl"
+python scripts/build_glove_full_vectors.py $VOCABFILE $EMBEDFILE $OUTFILE
+```
 
+**(2)** Build scipy.sparse co-ocurrence matrix\
+`python scripts/02-build_cooc_matrix.py <vocab_file.txt> <cooc_file.bin> <out_file.npz>`
+* builds a `scipy.sparse.csr_matrix` with co-occurrences stored in `.bin` file
+* the `.bin` file should be the same one used to train GloVe
+* matrix is saved as `.npz` file
 
-**TODO**
-- Pensar: los resultados de glove vs pmi pueden tener que ver con que GloVe mide cooc excluyendo a las palabras out of vocab? (es decir, elimina estas palabras y LUEGO mide coocurrencias en ventanas de tamaño window_size que solo tienen a las palabras del vocab). Además GloVe usa distance weighting.
+Example:
+```
+cd tesis-BiasNLP
+VOCABFILE="embeddings/vocab-C3-V20.txt"
+COOCFILE="embeddings/cooc-C3-V20-W8-D1.bin"
+OUTFILE="embeddings/cooc-C3-V20-W8-D1.npz"
+nohup python3 scripts/02-build_cooc_matrix.py -v $VOCABFILE -c $COOCFILE -o $OUTFILE 1>test.out 2>test.err &
+tail -f test.err
+```
 
-
-Notes:
-- Cooc. de GloVe solo considera words in vocab (>VOCAB_MIN_COUNT) como parte de la ventana -- es decir si window_size=2 y una palabra contexto está a 5 palabras de distancia de la target pero ninguna de estas está en el vocab, entonces es como si la distancia fuera 1 y entonces está dentro de la ventana. Entonces cooccurence Glove y `utils.coocurrence.create_cooc_dict()` coinciden solo si `VOCAB_MIN_COUNT=1`.
-- Cooc. de Glove cuenta todas las apariciones del contexto en la ventana (ej. si en una ventana el contexto está tres veces, se cuenta las 3) --> entonces la suma de las coocurrencias para una palabra con el resto no es igual a la frecuencia de la palabra
-- en step 1 usé Google Colab (ver https://colab.research.google.com/drive/143Me55jclH1DFEzUsFnHB0liq1fsuszr?authuser=1 con rkf.valentini@gmail.com)
-- Glove pondera coocurrencias por distancia (+ distancia en la ventana --> - coocucrrencia) -- esto se desactiva con `DISTANCE_WEIGHTING=0`
-- cooc.sh deletes stuff from embed.sh related to vectors and sets DISTANCE_WEIGHTING to 0.
-- had to install gcc to make GloVe -- used:
-  - https://stackoverflow.com/questions/25705726/bash-gcc-command-not-found-using-cygwin-when-compiling-c
-  - https://cygwin.com/install.html
-- downloaded `simplewiki-20200620-pages-articles-multistream.xml.bz2` from https://dumps.wikimedia.org/simplewiki/
-- out of vocab: "sunnites" "peeved"
-
-
-Code references:
-- [Garg et al 2018](https://github.com/nikhgarg/EmbeddingDynamicStereotypes)
-- [Brunet et al 2019](https://github.com/mebrunet/understanding-bias)
+### Important references
+- [Garg et al 2018 -- GitHub repo](https://github.com/nikhgarg/EmbeddingDynamicStereotypes)
+- [Brunet et al 2019 -- GitHub repo](https://github.com/mebrunet/understanding-bias)
