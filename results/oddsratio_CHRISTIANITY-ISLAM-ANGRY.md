@@ -1,9 +1,0 @@
-with embeddings/vocab-C3-V1.txt :
- 
-### PMI and Odds Ratio 
- - pmi(CHRISTIANITY,ANGRY) = 0.030579497006925773
- - pmi(ISLAM,ANGRY) = 0.011764069188677107
- - diff_pmi = 0.018815427818248666
- - logOddsRatio = 0.018816864704976292
- - CI-logOddsRatio = -0.2259324676620628 -- 0.26356619707201545
-

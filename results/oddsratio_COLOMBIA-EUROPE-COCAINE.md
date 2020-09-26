@@ -1,9 +1,0 @@
-with embeddings/vocab-C3-V1.txt :
- 
-### PMI and Odds Ratio 
- - pmi(COLOMBIA,COCAINE) = 4.005980836989253
- - pmi(EUROPE,COCAINE) = 0.10991322352702107
- - diff_pmi = 3.896067613462232
- - logOddsRatio = 3.8964538329300415
- - CI-logOddsRatio = 3.495830689942703 -- 4.2970769759173795
-

@@ -1,9 +1,0 @@
-with embeddings/vocab-C3-V1.txt :
- 
-### PMI and Odds Ratio 
- - pmi(MALE,CHEF) = 0.10903134960396436
- - pmi(FEMALE,CHEF) = 0.10610451447134925
- - diff_pmi = 0.002926835132615116
- - logOddsRatio = 0.002926875662876375
- - CI-logOddsRatio = -0.10454161634044125 -- 0.11039536766619398
-
