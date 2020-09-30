@@ -15,25 +15,28 @@ from metrics.cooc import log_oddsratio
 
 #%% Corpus parameters
 VOCAB_FILE = "embeddings/vocab-C3-V1.txt" # enwiki = C3
-FILE_ODDSRATIO = "results/pkl/oddsratio_byword_MALE_SHORT-FEMALE_SHORT.csv"
-FILE_GARG = "results/pkl/garg_byword_MALE_SHORT-FEMALE_SHORT.csv"
+FILE_DPMI = "results/csv/dpmi_byword_MALE_SHORT-FEMALE_SHORT.csv"
+FILE_WE = "results/csv/dist_byword_MALE_SHORT-FEMALE_SHORT.csv"
 
 #%% Load data
 print("Loading data...\n")
 str2idx, idx2str, str2count = load_vocab(VOCAB_FILE)
-dat_odds = pd.read_csv(FILE_ODDSRATIO)
-dat_garg = pd.read_csv(FILE_GARG)
-dat = pd.merge(dat_odds, dat_garg, how='inner', on=['word','idx'])
+dat_dpmi = pd.read_csv(FILE_DPMI)
+dat_we = pd.read_csv(FILE_WE)
+dat = pd.merge(dat_dpmi, dat_we, how='inner', on=['word','idx'])
 
 #%% Transform data
 # ranking segun abs(rel_norm_distance)
 rnd_abs = dat['rel_norm_distance'].abs()
 dat['rank_rnd_abs'] = stats.rankdata(rnd_abs, "average")/len(rnd_abs)
+# ranking segun abs(rel_cosine_similarity)
+rcs_abs = dat['rel_cosine_similarity'].abs()
+dat['rank_rcd_abs'] = stats.rankdata(rcs_abs, "average")/len(rcs_abs)
 # ranking segun abs(log_oddsratio) solo si p-value < 0.01
-lor_abs = dat.loc[dat['pvalue'] < 0.01]['log_oddsratio'].abs()
-rank_lor_abs = stats.rankdata(lor_abs, "average")/len(lor_abs)
-dat.loc[dat['pvalue'] < 0.01, 'rank_lor_abs'] = rank_lor_abs
-dat.loc[dat['pvalue'] >= 0.01, 'rank_lor_abs'] = 0.0
+dpmi_abs = dat.loc[dat['pvalue'] < 0.01]['diff_pmi'].abs()
+rank_dpmi_abs = stats.rankdata(dpmi_abs, "average")/len(dpmi_abs)
+dat.loc[dat['pvalue'] < 0.01, 'rank_dpmi_abs'] = rank_dpmi_abs
+dat.loc[dat['pvalue'] >= 0.01, 'rank_dpmi_abs'] = 0.0
 
 #%% Keep stopwords
 # words to remove from SW list
@@ -60,11 +63,12 @@ def scatter_stopwords(data, x_var, y_var):
     cbar.ax.set_title('freq.')
     return ax
 
-
-
 ### 1: plot in original scale
-g = scatter_stopwords(dat_sw, x_var='log_oddsratio', y_var='rel_norm_distance')
+g = scatter_stopwords(dat_sw, x_var='diff_pmi', y_var='rel_norm_distance')
 # add means
+### nota: no se puede calcular el DPMI exacto porque hace falta la suma
+### de los counts de toda la matriz de cooc
+### --> uso odds_ratio para el promedio
 logodds_avg = log_oddsratio(
     dat_sw['count_context_a'].sum(), dat_sw['count_notcontext_a'].sum()
     , dat_sw['count_context_b'].sum(), dat_sw['count_notcontext_b'].sum()
@@ -72,19 +76,24 @@ logodds_avg = log_oddsratio(
 rnd_avg = dat_sw['rel_norm_distance'].mean()
 g.scatter(x=logodds_avg, y=rnd_avg, color='r', marker="x")
 fig_1 = g.get_figure()
-fig_1.savefig('results/plots/scatter_stopwords_logodds_rnd.png', dpi=400)
+fig_1.savefig('results/plots/scatter_stopwords_dpmi_rnd.png', dpi=400)
 
 ### 2: plot with rankings of words in abs value
-g = scatter_stopwords(dat_sw, x_var='rank_lor_abs', y_var='rank_rnd_abs')
+g = scatter_stopwords(dat_sw, x_var='rank_dpmi_abs', y_var='rank_rnd_abs')
 # add means
-rank_lor_avg = dat_sw['rank_lor_abs'].mean()
+rank_lor_avg = dat_sw['rank_dpmi_abs'].mean()
 rank_rnd_avg = dat_sw['rank_rnd_abs'].mean()
 g.scatter(x=rank_lor_avg, y=rank_rnd_avg, color='r', marker="x")
 fig_2 = g.get_figure()
-fig_2.savefig('results/plots/scatter_stopwords_ranklogodds_rankrnd.png', dpi=400)
+fig_2.savefig('results/plots/scatter_stopwords_rankdpmi_rankrnd.png', dpi=400)
 # Nota: en LOR el rank=0 si pvalor>0.01
 
 #%% Otros plots
+
+# RND vs RCS
+g = scatter_stopwords(dat, x_var='rel_norm_distance', y_var='rel_cosine_similarity')
+fig_ = g.get_figure()
+fig_.savefig('results/plots/scatter_rnd_rcs.png', dpi=400)
 
 def scatter_plt(data, x_var, y_var):
     """
@@ -106,10 +115,14 @@ def scatter_plt(data, x_var, y_var):
 g = scatter_plt(dat, x_var='freq', y_var='rel_norm_distance')
 fig_ = g.get_figure()
 fig_.savefig('results/plots/scatter_freq_rnd.png', dpi=400)
-# Freq and LOGOODS
-g = scatter_plt(dat, x_var='freq', y_var='log_oddsratio')
+# Freq and RCS
+g = scatter_plt(dat, x_var='freq', y_var='rel_cosine_similarity')
 fig_ = g.get_figure()
-fig_.savefig('results/plots/scatter_freq_logodds.png', dpi=400)
+fig_.savefig('results/plots/scatter_freq_rcs.png', dpi=400)
+# Freq and LOGOODS
+g = scatter_plt(dat, x_var='freq', y_var='diff_pmi')
+fig_ = g.get_figure()
+fig_.savefig('results/plots/scatter_freq_dpmi.png', dpi=400)
 
 def scatter_freq_sw(data, x_var, y_var):
     """
@@ -130,10 +143,14 @@ def scatter_freq_sw(data, x_var, y_var):
 g = scatter_freq_sw(dat, x_var='freq', y_var='rel_norm_distance')
 fig_ = g.get_figure()
 fig_.savefig('results/plots/scatter_freq_rnd_sw.png', dpi=400)
-# Freq and LOGODDS
-g = scatter_freq_sw(dat, x_var='freq', y_var='log_oddsratio')
+# Freq and RCS
+g = scatter_freq_sw(dat, x_var='freq', y_var='rel_cosine_similarity')
 fig_ = g.get_figure()
-fig_.savefig('results/plots/scatter_freq_logodds_sw.png', dpi=400)
+fig_.savefig('results/plots/scatter_freq_rcs_sw.png', dpi=400)
+# Freq and LOGODDS
+g = scatter_freq_sw(dat, x_var='freq', y_var='diff_pmi')
+fig_ = g.get_figure()
+fig_.savefig('results/plots/scatter_freq_dpmi_sw.png', dpi=400)
 
 
 #%% inspeccion visual

@@ -21,13 +21,30 @@ def norm_distances(embed_matrix, idx_target, idx_context):
     return normdiffs
 
 
-def relative_norm_distances(embed_matrix, idx_target_a, idx_target_b
-                            ,idx_context, str2idx):
+def cosine_similarities(embed_matrix, idx_target, idx_context):
+    """Return relative cosin similarity values between avg of words_target and
+    words_context
+    Param:
+        - embed_matrix: d x V matrix where column indices are indices of words
+        given by str2idx
+    Notes:
+        - Must pass words indices (not words)
+        - It works OK if len(idx_target) == 1
+    """
+    M = embed_matrix
+    avg_target = np.mean(M[:,idx_target], axis=1)[:,np.newaxis]
+    M_c = M[:,idx_context] # matriz de contexts words
+    # similitud coseno (dot product)
+    rel_sims = np.dot(avg_target.T, M_c).ravel()
+    return rel_sims
+
+
+def relative_norm_distances(
+                        embed_matrix, idx_target_a, idx_target_b, idx_context):
     """Return relative norm distances between A/B wrt to each Context
     (Garg et al 2018 Eq 3)
     Param:
         - embed_matrix: d x V matrix where column indices are indices of words
-        given by str2idx
     Notes:
         - Must pass words indices (not words)
     """
@@ -42,15 +59,37 @@ def relative_norm_distances(embed_matrix, idx_target_a, idx_target_b
     return diffs
 
 
-def bias_relative_norm_distance(embed_matrix
-                                ,words_target_a, words_target_b, words_context
-                                ,str2idx
-                                ,ci_bootstrap_iters=None):
-    """Return relative_norm_distance as bias metric between A/B wrt to Context
+def relative_cosine_similarities(
+                        embed_matrix, idx_target_a, idx_target_b, idx_context):
+    """Return relative norm distances between A/B wrt to each Context
+    (Garg et al 2018 Eq 3)
+    Param:
+        - embed_matrix: d x V matrix where column indices are indices of words
+    Notes:
+        - Must pass words indices (not words)
+    """
+    # normalize vecs to norm 1
+        # Garg p8: "all vectors are normalized by their l2 norm"
+    M = embed_matrix / np.linalg.norm(embed_matrix, axis=0)
+    # distancias de avg(target) cra cada context
+    cos_a = cosine_similarities(M, idx_target_a, idx_context)
+    cos_b = cosine_similarities(M, idx_target_b, idx_context)
+    # > 0: mas cerca de A que de B --> bias "hacia" A
+    diffs = cos_a - cos_b
+    return diffs
+
+
+def bias_embeddings(embed_matrix
+                    ,words_target_a, words_target_b, words_context
+                    ,str2idx
+                    ,type="norm2"
+                    ,ci_bootstrap_iters=None):
+    """Return bias metric between A/B wrt to Context
     (Garg et al 2018 Eq 3)
     Param:
         - embed_matrix: d x V matrix where column indices are indices of words
         given by str2idx
+        - type: "norm2" or "cosine"
     """
     # handling words out of vocab
     words = words_target_a + words_target_b + words_context
@@ -63,27 +102,32 @@ def bias_relative_norm_distance(embed_matrix
     idx_a = sorted([str2idx[w] for w in words_target_a if w not in words_out])
     idx_b = sorted([str2idx[w] for w in words_target_b if w not in words_out])
     idx_c = sorted([str2idx[w] for w in words_context if w not in words_out])
-    # get differences dist(avg(B),c) - dist(avg(A),c) for each c
-    diffs = relative_norm_distances(embed_matrix, idx_a, idx_b, idx_c, str2idx)
+    # get differences for each c
+    if type == "norm2":
+        diffs = relative_norm_distances(
+                                    embed_matrix, idx_a, idx_b, idx_c)
+    if type == "cosine":
+        diffs = relative_cosine_similarities(
+                                    embed_matrix, idx_a, idx_b, idx_c)
     # avg para todos los contextos
-    rel_norm_distance = np.mean(diffs)
+    mean_diff = np.mean(diffs)
     # plots Garg usan sns.tsplot con error bands (deprecated function)
     if ci_bootstrap_iters:
-        rel_norm_distances = []
+        means = []
         np.random.seed(123)
         for b in range(ci_bootstrap_iters):
             indices = np.random.choice(len(diffs), len(diffs), replace=True)
-            rel_norm_distances.append(np.mean(diffs[indices]))
-        sd = np.std(rel_norm_distances)
-        lower, upper = rel_norm_distance - sd, rel_norm_distance + sd
-        return rel_norm_distance, lower, upper
-    return rel_norm_distance
+            means.append(np.mean(diffs[indices]))
+        sd = np.std(means)
+        lower, upper = mean_diff - sd, mean_diff + sd
+        return mean_diff, lower, upper
+    return mean_diff
 
 
 def bias_byword(embed_matrix, words_target_a, words_target_b, words_context
                 ,str2idx, str2count):
     """ Return DataFrame with
-        - Garg bias A/B of each Context word
+        - Embedding bias A/B of each Context word
         - freq of each word
     """
     # handling words out of vocab (asume que todas las context estan en vocab)
@@ -99,12 +143,14 @@ def bias_byword(embed_matrix, words_target_a, words_target_b, words_context
     idx_b = sorted([str2idx[w] for w in words_target_b \
                                                 if w not in words_target_out])
     idx_c = sorted([str2idx[w] for w in words_context])
-    # get differences dist(avg(B),c) - dist(avg(A),c) for each c
-    diffs = relative_norm_distances(embed_matrix, idx_a, idx_b, idx_c, str2idx)
+    # get differences for each c
+    diffs_norm2 = relative_norm_distances(embed_matrix, idx_a, idx_b, idx_c)
+    diffs_cosine = relative_cosine_similarities(embed_matrix, idx_a, idx_b, idx_c)
     # results DataFrame (todos los resultados sorted by idx)
     str2idx_context = {w: str2idx[w] for w in words_context}
     str2count_context = {w: str2count[w] for w in str2idx_context}
     results = pd.DataFrame(str2idx_context.items(), columns=['word','idx'])
-    results['rel_norm_distance'] = diffs
+    results['rel_norm_distance'] = diffs_norm2
+    results['rel_cosine_similarity'] = diffs_cosine
     results['freq'] = str2count_context.values()
     return results

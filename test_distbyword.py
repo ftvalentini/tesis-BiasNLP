@@ -42,10 +42,10 @@ least_biased = result.\
                 head(20)
 
 #%% save csv results
-result.to_csv(f'results/csv/rnd_byword_{TARGET_A}-{TARGET_B}.csv', index=False)
+result.to_csv(f'results/csv/dist_byword_{TARGET_A}-{TARGET_B}.csv', index=False)
 
 #%% print results
-with open(f'results/rnd_byword_{TARGET_A}-{TARGET_B}.md', "w") as f:
+with open(f'results/dist_byword_{TARGET_A}-{TARGET_B}.md', "w") as f:
     print(
         f'with {EMBED_FILE} :\n'
         ,f'\n### Most biased {TARGET_A}/{TARGET_B} \n'
