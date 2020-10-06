@@ -35,7 +35,10 @@ def cosine_similarities(embed_matrix, idx_target, idx_context):
     avg_target = np.mean(M[:,idx_target], axis=1)[:,np.newaxis]
     M_c = M[:,idx_context] # matriz de contexts words
     # similitud coseno (dot product)
-    rel_sims = np.dot(avg_target.T, M_c).ravel()
+    # (context van a estar normalizados -- targets se "desnormalizan" al promediar)
+    rel_sims = np.dot(avg_target.T, M_c) / \
+                    (np.linalg.norm(avg_target) * np.linalg.norm(M_c, axis=0))
+    rel_sims = rel_sims.ravel()
     return rel_sims
 
 
