@@ -63,7 +63,8 @@ OUTFILE="embeddings/cooc-C3-V1-W8-D0.npz"
 nohup python3 scripts/02-build_cooc_matrix.py -v $VOCABFILE -c $COOCFILE -o $OUTFILE 1>test.out 2>test.err &
 tail -f test.err
 ```
-### Relative norm distance bias (RND)
+
+### Relative norm distance (RND) bias
 
 Get the value of RND bias in corpus for given sets of target and context words (for example, `MALE`, `FEMALE` and `SCIENCE`)
 
@@ -74,15 +75,15 @@ Get the value of RND bias in corpus for given sets of target and context words (
 `python test_rnd.py`
 * Results are saved as `.md` in `results/`
 
-### RND by word
+### RND and relative cosine similarity (RCS) by word
 
-Get the RND bias of each word in vocabulary with respect to a given set of target groups (for example, `MALE` and `FEMALE`)
+Get the RND and RCS bias of each word in vocabulary with respect to a given set of target groups (for example, `MALE` and `FEMALE`)
 
-**(1)** Set parameters in `test_rnd.py`
+**(1)** Set parameters in `test_distbyword.py`
 * `TARGET_A`,`TARGET_B` are names of target word lists in `words_lists/`
 
 **(2)** Get value of relative norm distance for each word with respect to the two groups of target words\
-`python test_rndbyword.py`
+`python test_distbyword.py`
 * Results are saved as `.md` and `.csv` in `results/`
 
 ### Differential PMI bias (DPMI)
@@ -113,11 +114,44 @@ Analyse the relationship between:
 a) bias of each word as measured by DPMI and RND with respect to predefined sets of target words (for example, `MALE` and `FEMALE`)
 b) stopwords and word frequency
 
-**(1)** Run `test_rndbyword.py` and `test_dpmibyword.py`
+**(1)** Run `test_distbyword.py` and `test_dpmibyword.py`
 * `TARGET_A`,`TARGET_B` are names of target word lists in `words_lists/`
 
 **(2)** Get plots to describe the relationship between RND, DPMI, stopwords and frequency
 * plots are saved in `results/plots/`
+
+### Influence of frequency in bias metrics
+
+Create new perturbed corpora where the ratio of female/male pronouns ("he"/"she") is altered. Assess the impact on the relationship between word frequency and gender bias as measured.
+
+**(1)** Count number of target pronouns in each document of the corpus\
+`python scripts/count_target_words.py <corpus_txt> <word_a> <word_b>`
+
+Example:
+```
+cd tesis-BiasNLP
+CORPUS="corpora/enwikiselect.txt"
+A="he"
+B="she"
+python scripts/count_words.py $CORPUS $A $B
+```
+
+**(2)** Create over and undersampled corpora\
+`python -u scripts/make_undersampled_corpora.py <corpus.txt> <vocab.txt> <counts.pkl> <output_dir> <seed>`
+`python -u scripts/make_oversampled_corpora.py <corpus.txt> <vocab.txt> <counts.pkl> <output_dir> <seed>`
+* must set `WORD_A`, `WORD_B`, `RATIOS` in scripts
+
+Example:
+```
+cd tesis-BiasNLP
+CORPUSFILE="corpora/enwikiselect.txt"
+VOCABFILE="embeddings/vocab-C3-V1.txt"
+COUNTSFILE="corpora/enwikiselect_counts_he-she.pkl"
+OUTDIR="E:\\tesis-BiasNLP\\corpora"
+SEED=88
+python -u scripts/make_undersampled_corpora.py $CORPUSFILE $VOCABFILE $COUNTSFILE $OUTDIR $SEED
+python -u scripts/make_oversampled_corpora.py $CORPUSFILE $VOCABFILE $COUNTSFILE $OUTDIR $SEED
+```
 
 ### Bias gradient in GloVe
 
