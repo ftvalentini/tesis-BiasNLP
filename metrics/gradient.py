@@ -158,6 +158,37 @@ def bias_gradient(idx_c, idx_a, idx_b, W, U, b_w, b_u, X):
 # X = scipy.sparse.load_npz(COOC_FILE)
 # ###
 
+# ### TEST: grad_bias_w da igual para todos los vectores a la vez que por separado
+# idx_a = 10
+# idx_b = 20
+# idx_c = 2000
+# Wa = W[idx_a,:]
+# Wb = W[idx_b,:]
+# Wc = W[idx_c,:]
+# avg_t1 = np.mean(W[idx_a,:], axis=0)
+# avg_t2 = np.mean(W[idx_b,:], axis=0)
+# # por separado
+# def bias_rnd_context(Wi, avg_t1, avg_t2):
+#     return np.linalg.norm(Wi - avg_t2) - np.linalg.norm(Wi - avg_t1)
+# def bias_rnd_target1(Wtarget1, avg_t2, Wc):
+#     avg_t1 = np.mean(Wtarget1, axis=0)
+#     return np.linalg.norm(Wc - avg_t2) - np.linalg.norm(Wc - avg_t1)
+# def bias_rnd_target2(Wtarget2, avg_t1, Wc):
+#     avg_t2 = np.mean(Wtarget2, axis=0)
+#     return np.linalg.norm(Wc - avg_t2) - np.linalg.norm(Wc - avg_t1)
+# f_bias_c = lambda w: bias_rnd_context(w, avg_t1, avg_t2)
+# f_bias_t1 = lambda w: bias_rnd_target1(w, avg_t2, Wc)
+# f_bias_t2 = lambda w: bias_rnd_target2(w, avg_t1, Wc)
+# grad_bias_wc = jacobian(f_bias_c)(Wc)
+# grad_bias_wt1 = jacobian(f_bias_t1)(Wa)
+# grad_bias_wt2 = jacobian(f_bias_t2)(Wb)
+# # todo junto
+# rdo = gradient_bias_w(W, idx_c, idx_a, idx_b)
+# np.allclose(rdo[idx_a,:].toarray(), grad_bias_wt1)
+# np.allclose(rdo[idx_b,:].toarray(), grad_bias_wt2)
+# np.allclose(rdo[idx_c,:].toarray(), grad_bias_wc)
+# ### DA LO MISMO!!! :)
+
 # ### chequeo bias vs resultados previos
 # tmp = pd.read_csv("results/pkl/garg_byword_MALE_SHORT-FEMALE_SHORT.csv")
 # tmp.loc[tmp['word'] == "girlfriend"]

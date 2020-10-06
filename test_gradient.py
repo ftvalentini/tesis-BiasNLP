@@ -165,6 +165,10 @@ print(W.shape)
 assert grad_bias_w.shape == W.shape
 ii, jj, Wij = find(grad_bias_w)
 # --> hay valores no nulos en los WE de las palabras
+# esta testeado que da lo mismo calcular cada gradiente para wi por separado
+# y luego sumarlos en una matriz de VxD
+# en el calculo final del bias grad de hecho se hace sin usar la matriz con los
+# tres vectores no nulos, sino que se hace por separado
 # 2. Hessian de pointwise loss en Xi wrt Wi
 from metrics.gradient import Hi, grad_loss_wi
 i = idx_c
@@ -188,6 +192,7 @@ print(Ji.shape)
 # 4. gradiente Wi X
 # version q aumenta dim al final
 grad_wi_x = 1/V * np.matmul(H1_i, jacobian_w_y)
+np.any(grad_wi_x[:,i]>0) # hay valores positivos en la propia palabra
 grad_w_x = lil_matrix((dim, V))
 grad_w_x[:,Ji] = grad_wi_x
 grad_w_x = grad_w_x.toarray()
@@ -199,6 +204,7 @@ grad_w_x_bis = 1/V * np.matmul(H1_i, jacobian_bis.toarray()) #premult for H "ree
 assert np.allclose(grad_w_x_bis, grad_w_x) # da igual
 # chequea forma
 grad_w_x = csr_matrix(grad_w_x)
+print(grad_w_x.shape)
 ii, jj, xx = find(grad_w_x)
 assert np.allclose(np.unique(jj), Ji) # en las columnas quedan coocs con i
 # 5. mult final
