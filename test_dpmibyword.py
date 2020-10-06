@@ -11,8 +11,8 @@ VOCAB_FILE = "embeddings/vocab-C3-V1.txt" # wikipedia dump = C0
 COOC_FILE = "embeddings/cooc-C3-V1-W8-D0.npz"
 
 #%% Estereotipos parameters
-TARGET_A = 'MALE'
-TARGET_B = 'FEMALE'
+TARGET_A = 'MALE_SHORT'
+TARGET_B = 'FEMALE_SHORT'
 WORD_MIN_COUNT = 20
 
 print("START:", datetime.datetime.now())
@@ -37,18 +37,18 @@ print("Computing results...\n")
 rdos = bias_byword(cooc_matrix, words_a, words_b, words_context, str2idx)
 most_biased = rdos.\
                 loc[np.isfinite(rdos['pvalue'])]. \
-                sort_values(['log_oddsratio','pvalue'], ascending=[False, True]). \
+                sort_values(['diff_pmi','pvalue'], ascending=[False, True]). \
                 head(20)
 least_biased = rdos.\
                 loc[np.isfinite(rdos['pvalue'])]. \
-                sort_values(['log_oddsratio','pvalue'], ascending=[True, True]). \
+                sort_values(['diff_pmi','pvalue'], ascending=[True, True]). \
                 head(20)
 
 #%% save pickle results
-rdos.to_csv(f'results/pkl/oddsratio_byword_{TARGET_A}-{TARGET_B}.csv', index=False)
+rdos.to_csv(f'results/csv/dpmi_byword_{TARGET_A}-{TARGET_B}.csv', index=False)
 
 #%% print results
-with open(f'results/oddsratio_byword_{TARGET_A}-{TARGET_B}.md', "w") as f:
+with open(f'results/dpmi_byword_{TARGET_A}-{TARGET_B}.md', "w") as f:
     print(
         f'with {COOC_FILE} :\n'
         ,f'\n### Most biased {TARGET_A}/{TARGET_B} \n'

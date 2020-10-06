@@ -2,7 +2,7 @@ import os, datetime
 import numpy as np
 
 from scripts.utils.corpora import load_vocab
-from metrics.glove import bias_relative_norm_distance
+from metrics.glove import bias_embeddings
 
 #%% Corpus parameters
 VOCAB_FILE = "embeddings/vocab-C3-V20.txt" # wikipedia dump = C0
@@ -30,9 +30,9 @@ str2idx, idx2str, str2count = load_vocab(VOCAB_FILE)
 embed_matrix = np.load(EMBED_FILE)
 
 #%% Bias with relative norm distance
-bias_garg = bias_relative_norm_distance(
+bias_garg = bias_embeddings(
                             embed_matrix, words_a, words_b, words_c, str2idx
-                            ,ci_bootstrap_iters=200)
+                            ,type="norm2", ci_bootstrap_iters=200)
 
 #%% print results
 with open(f'results/rnd_{TARGET_A}-{TARGET_B}-{CONTEXT}.md', "w") as f:
