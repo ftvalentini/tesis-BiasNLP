@@ -5,7 +5,7 @@ import argparse
 from pathlib import Path
 from gensim.models.word2vec import Word2Vec
 
-from scripts.utils.corpora import load_vocab
+from utils.corpora import load_vocab
 
 
 class Corpus:
@@ -33,7 +33,7 @@ def train_w2v(corpus_file, size, window, min_count, seed, sg):
         - sg: 1 if skipgram -- 0 if cbow
     """
     # create generator of docs
-    docs = Corpus(CORPUS_FILE)
+    docs = Corpus(corpus_file)
     # train word2vec
     model = Word2Vec(
         sentences=docs, size=size, window=window, min_count=min_count
@@ -47,7 +47,7 @@ def w2v_to_array(w2v_model, str2idx):
     of str2idx of vocab_file produced by GloVe
     """
     vectors = w2v_model.wv
-    D = model.wv.vector_size
+    D = w2v_model.wv.vector_size
     V = len(str2idx)
     M = np.full((D, V+1), np.nan)
     for w, i in str2idx.items():
@@ -62,7 +62,7 @@ def main(corpus_id, corpus_file, vocab_file, outdir, **kwargs_w2v):
     # load vocab
     str2idx, idx2str, str2count = load_vocab(vocab_file)
     # train vectors
-    model = train_w2v(corpus_file, size, window, min_count, seed, sg):
+    model = train_w2v(corpus_file, **kwargs_w2v)
     # TEST vocab coincide con vocab de glove
     str2count_w2v = {w: model.wv.vocab[w].count for w in model.wv.vocab}
     assert str2count_w2v == str2count
@@ -70,12 +70,12 @@ def main(corpus_id, corpus_file, vocab_file, outdir, **kwargs_w2v):
     embed_matrix = w2v_to_array(model, str2idx)
     # save w2v model
     kw = kwargs_w2v
-    basename =
+    basename = \
         f"w2v_C{corpus_id}_V{kw['min_count']}_W{kw['window']}_D{kw['size']}_SG{kw['sg']}"
-    model_file = Path(outdir) / "embeddings" / f"{basename}.model"
+    model_file = str(Path(outdir) / "embeddings" / f"{basename}.model")
     model.save(model_file)
     # save embeddings array
-    matrix_file = Path(outdir) / "embeddings" / f"{basename}.npz"
+    matrix_file = str(Path(outdir) / "embeddings" / f"{basename}.npz")
     np.save(matrix_file, embed_matrix)
 
 
