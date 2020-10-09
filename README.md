@@ -15,7 +15,7 @@ Follow these steps to create the data needed to run tests. Code was tested with:
 * outputs a `.txt` corpus, a `.meta.txt` with corpus info and `.meta.json` with documents' info
 * `<output_file>` must not have extension.
 
-### GloVe setup
+### GloVe
 
 **(0)** Build GloVe from source so that it can be executed\
 `make -C "GloVe"` (run only once)
@@ -36,8 +36,33 @@ Example:
 cd tesis-BiasNLP
 VOCABFILE="embeddings/vocab-C3-V20.txt"
 EMBEDFILE="embeddings/vectors-C3-V20-W8-D1-D100-R0.05-E150-S1.bin"
-OUTFILE="embeddings/vectors-C3-V20-W8-D1-D100-R0.05-E150-S1.npy"
+OUTFILE="embeddings/glove-C3-V20-W8-D1-D100-R0.05-E150-S1.npy"
 python3 scripts/02-build_embeddings_matrix.py -v $VOCABFILE -e $EMBEDFILE -o $OUTFILE
+```
+
+### Word2Vec
+
+Train word embeddings with Skip-Gram or CBOW using `gensim` with parameters similar to the ones used for GloVe.
+
+**(1)** Train Word2Vec\
+`python -u scripts/train_word2vec.py <required_params>`
+* Saves `.model` with trained model and `.npy` with embeddings in array format.
+* If model is large, files with extension `.trainables.syn1neg.npy` and `.wv.vectors.npy` might be saved alongside `.model`.
+
+Example:
+```
+CORPUSID=3
+VOCABFILE="embeddings/vocab-C3-V20.txt"
+CORPUSFILE="corpora/enwikiselect.txt"
+OUTDIR="E:\\tesis-BiasNLP"
+SG=0 # 0:cbow, 1:sgns
+SIZE=100
+WINDOW=8
+MINCOUNT=20
+SEED=1
+python -u scripts/train_word2vec.py \
+  --id $CORPUSID --corpus $CORPUSFILE --vocab $VOCABFILE --outdir $OUTDIR \
+  --size $SIZE --window $WINDOW --count $MINCOUNT --sg $SG --seed $SEED
 ```
 
 ### Co-ocurrence matrix
@@ -75,16 +100,28 @@ Get the value of RND bias in corpus for given sets of target and context words (
 `python test_rnd.py`
 * Results are saved as `.md` in `results/`
 
+<!-- VER DESDE aca para ABAJO: -->
+  <!-- SE TIENE QUE PODER CAMBIAR LOS EMBEDDINGS COMO PARAM PARA USAR W2V -->
+
+
 ### RND and relative cosine similarity (RCS) by word
 
-Get the RND and RCS bias of each word in vocabulary with respect to a given set of target groups (for example, `MALE` and `FEMALE`)
+Get the RND and RCS bias of each word in vocabulary with respect to a given set of target groups (for example, `MALE` and `FEMALE`) and a set of trained vectors.
 
 **(1)** Set parameters in `test_distbyword.py`
 * `TARGET_A`,`TARGET_B` are names of target word lists in `words_lists/`
 
 **(2)** Get value of relative norm distance for each word with respect to the two groups of target words\
-`python test_distbyword.py`
+`python test_distbyword.py <vocab_file> <embed_file>`
 * Results are saved as `.md` and `.csv` in `results/`
+
+Example:
+```
+VOCABFILE="embeddings/vocab-C3-V20.txt"
+# EMBEDFILE="embeddings/glove-C3-V20-W8-D1-D100-R0.05-E150-S1.npy"
+EMBEDFILE="embeddings/w2v-C3-V20-W8-D100-SG0.npy"
+python -u test_distbyword.py $VOCABFILE $EMBEDFILE
+```
 
 ### Differential PMI bias (DPMI)
 
@@ -101,7 +138,7 @@ Get the value of DPMI bias in corpus for given sets of target and context words 
 
 Get the DPMI bias of each word in vocabulary with respect to a given set of target groups (for example, `MALE` and `FEMALE`)
 
-**(1)** Set parameters in `test_dpmi.py`
+**(1)** Set parameters in `test_dpmibyword.py`
 * `TARGET_A`,`TARGET_B` are names of target word lists in `words_lists/`
 
 **(2)** Get values of DPMI and log-OddsRatio for each word with respect to the two groups of target words\
@@ -110,14 +147,30 @@ Get the DPMI bias of each word in vocabulary with respect to a given set of targ
 
 ### Stopwords and frequency analysis
 
-Analyse the relationship between:
+Analyse visually the relationship between:
 a) bias of each word as measured by DPMI and RND with respect to predefined sets of target words (for example, `MALE` and `FEMALE`)
 b) stopwords and word frequency
 
-**(1)** Run `test_distbyword.py` and `test_dpmibyword.py`
+**(1)** Run `test_distbyword.py <vocab_file> <embed_file>` and `test_dpmibyword.py`
 * `TARGET_A`,`TARGET_B` are names of target word lists in `words_lists/`
 
-**(2)** Get plots to describe the relationship between RND, DPMI, stopwords and frequency
+**(2)** Get plots for targets set in (1)\
+`python -u test_stopwords.py <dpmi_file> <we_file>`
+* plots are saved in `results/plots/`
+
+Example:
+
+```
+FILE_DPMI="results/csv/dpmibyword_C3_MALE_SHORT-FEMALE_SHORT.csv"
+#FILE_WE="results/csv/distbyword_glove-C3_MALE_SHORT-FEMALE_SHORT.csv"
+FILE_WE="results/csv/distbyword_w2v-C3_MALE_SHORT-FEMALE_SHORT.csv"
+python -u test_stopwords.py $FILE_DPMI $FILE_WE
+```
+
+<!-- seguir desde aca -->
+
+**(3)** Get plots for arbitrary target words\
+`python test_frequency.py`
 * plots are saved in `results/plots/`
 
 ### Influence of frequency in bias metrics
