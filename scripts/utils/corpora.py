@@ -1,6 +1,6 @@
 
 
-def load_vocab(vocab_file="embeddings/vocab-C0-V20.txt"):
+def load_vocab(vocab_file):
     """
     Returns 3 dicts from vocab built with GloVe:
         - str2idx
