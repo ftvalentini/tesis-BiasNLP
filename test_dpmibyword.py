@@ -1,6 +1,8 @@
 import numpy as np
 import pandas as pd
-import os, datetime
+import os
+import datetime
+import re
 import scipy.sparse
 
 from scripts.utils.corpora import load_vocab
@@ -44,11 +46,12 @@ least_biased = rdos.\
                 sort_values(['diff_pmi','pvalue'], ascending=[True, True]). \
                 head(20)
 
-#%% save pickle results
-rdos.to_csv(f'results/csv/dpmi_byword_{TARGET_A}-{TARGET_B}.csv', index=False)
+#%% save csv results
+results_name = re.search("^.+/cooc-(C\d+)-.+$", COOC_FILE).group(1)
+rdos.to_csv(f'results/csv/dpmibyword_{results_name}_{TARGET_A}-{TARGET_B}.csv', index=False)
 
 #%% print results
-with open(f'results/dpmi_byword_{TARGET_A}-{TARGET_B}.md', "w") as f:
+with open(f'results/dpmibyword_{results_name}_{TARGET_A}-{TARGET_B}.md', "w") as f:
     print(
         f'with {COOC_FILE} :\n'
         ,f'\n### Most biased {TARGET_A}/{TARGET_B} \n'
