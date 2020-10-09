@@ -34,7 +34,7 @@ def main(argv):
     from optparse import OptionParser
     from os import path
     usageStr = """
-    python build_embeddings_matrix.py -v <vocabfile.txt> -e <embed.bin> -o <outfile.npz>'
+    python build_embeddings_matrix.py -v <vocabfile.txt> -e <embed.bin> -o <outfile.npy>'
     Files relative to root project directory
     """
     parser = OptionParser(usageStr)
