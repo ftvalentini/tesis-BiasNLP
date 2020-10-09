@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 import argparse
+import datetime
 
 from pathlib import Path
 from gensim.models.word2vec import Word2Vec
@@ -59,23 +60,24 @@ def main(corpus_id, corpus_file, vocab_file, outdir, **kwargs_w2v):
     """
     Train w2v, save w2v model and save embeddings matrix
     """
-    # load vocab
+    print("loading vocab...")
     str2idx, idx2str, str2count = load_vocab(vocab_file)
-    # train vectors
+    print("training vectors...")
     model = train_w2v(corpus_file, **kwargs_w2v)
+    print("saving model...")
+    basename = \
+        f"w2v-C{corpus_id}-V{kw['min_count']}-W{kw['window']}-D{kw['size']}-SG{kw['sg']}"
+    kw = kwargs_w2v
+    model_file = str(Path(outdir) / "embeddings" / f"{basename}.model")
+    model.save(model_file)
+    print("testing vocabulary...")
     # TEST vocab coincide con vocab de glove
     str2count_w2v = {w: model.wv.vocab[w].count for w in model.wv.vocab}
     assert str2count_w2v == str2count
-    # w2v vectors as np.array
+    print("converting vectors to array...")
     embed_matrix = w2v_to_array(model, str2idx)
-    # save w2v model
-    kw = kwargs_w2v
-    basename = \
-        f"w2v_C{corpus_id}_V{kw['min_count']}_W{kw['window']}_D{kw['size']}_SG{kw['sg']}"
-    model_file = str(Path(outdir) / "embeddings" / f"{basename}.model")
-    model.save(model_file)
-    # save embeddings array
-    matrix_file = str(Path(outdir) / "embeddings" / f"{basename}.npz")
+    print("saving array...")
+    matrix_file = str(Path(outdir) / "embeddings" / f"{basename}.npy")
     np.save(matrix_file, embed_matrix)
 
 
@@ -96,4 +98,6 @@ if __name__ == "__main__":
         'size': args.size, 'window': args.window, 'min_count': args.count
         , 'sg': args.sg, 'seed': args.seed
         }
+    print("START -- ", datetime.datetime.now())
     main(args.id, args.corpus, args.vocab, args.outdir, **kwargs_w2v)
+    print("END -- ", datetime.datetime.now())
