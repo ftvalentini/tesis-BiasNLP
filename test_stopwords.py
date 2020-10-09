@@ -1,6 +1,8 @@
 import numpy as np
 import pandas as pd
-import os, datetime
+import datetime
+import sys
+import re
 
 import seaborn as sns
 import matplotlib
@@ -10,19 +12,24 @@ import scipy.stats as stats
 import nltk
 from nltk.corpus import stopwords
 
-from scripts.utils.corpora import load_vocab
 from metrics.cooc import log_oddsratio
 
+
 #%% Corpus parameters
-VOCAB_FILE = "embeddings/vocab-C3-V1.txt" # enwiki = C3
-FILE_DPMI = "results/csv/dpmi_byword_MALE_SHORT-FEMALE_SHORT.csv"
-FILE_WE = "results/csv/dist_byword_MALE_SHORT-FEMALE_SHORT.csv"
+# default values
+FILE_RESULTS_DPMI = "results/csv/dpmibyword_C3_MALE_SHORT-FEMALE_SHORT.csv"
+FILE_RESULTS_WE = "results/csv/distbyword_glove-C3_MALE_SHORT-FEMALE_SHORT.csv"
+# cmd values
+if len(sys.argv)>1 and sys.argv[1].endswith(".csv"):
+    FILE_RESULTS_DPMI = sys.argv[1]
+    FILE_RESULTS_WE = sys.argv[2]
+
+res_id = re.search("^.+/distbyword_(.+C\d+)_.+$", FILE_RESULTS_WE).group(1)
 
 #%% Load data
 print("Loading data...\n")
-str2idx, idx2str, str2count = load_vocab(VOCAB_FILE)
-dat_dpmi = pd.read_csv(FILE_DPMI)
-dat_we = pd.read_csv(FILE_WE)
+dat_dpmi = pd.read_csv(FILE_RESULTS_DPMI)
+dat_we = pd.read_csv(FILE_RESULTS_WE)
 dat = pd.merge(dat_dpmi, dat_we, how='inner', on=['word','idx'])
 
 #%% Transform data
@@ -45,7 +52,7 @@ sw = set(stopwords.words('english')) - set(words_rm)
 dat['sw'] = np.where(dat['word'].isin(sw), 1, 0)
 dat_sw = dat.loc[dat['sw'] == 1]
 
-#%% Plots
+#%% Plot fns
 
 def scatter_stopwords(data, x_var, y_var):
     """
@@ -63,37 +70,6 @@ def scatter_stopwords(data, x_var, y_var):
     cbar.ax.set_title('freq.')
     return ax
 
-### 1: plot in original scale
-g = scatter_stopwords(dat_sw, x_var='diff_pmi', y_var='rel_norm_distance')
-# add means
-### nota: no se puede calcular el DPMI exacto porque hace falta la suma
-### de los counts de toda la matriz de cooc
-### --> uso odds_ratio para el promedio
-logodds_avg = log_oddsratio(
-    dat_sw['count_context_a'].sum(), dat_sw['count_notcontext_a'].sum()
-    , dat_sw['count_context_b'].sum(), dat_sw['count_notcontext_b'].sum()
-    , ci_level=0.95)[0]
-rnd_avg = dat_sw['rel_norm_distance'].mean()
-g.scatter(x=logodds_avg, y=rnd_avg, color='r', marker="x")
-fig_1 = g.get_figure()
-fig_1.savefig('results/plots/scatter_stopwords_dpmi_rnd.png', dpi=400)
-
-### 2: plot with rankings of words in abs value
-g = scatter_stopwords(dat_sw, x_var='rank_dpmi_abs', y_var='rank_rnd_abs')
-# add means
-rank_lor_avg = dat_sw['rank_dpmi_abs'].mean()
-rank_rnd_avg = dat_sw['rank_rnd_abs'].mean()
-g.scatter(x=rank_lor_avg, y=rank_rnd_avg, color='r', marker="x")
-fig_2 = g.get_figure()
-fig_2.savefig('results/plots/scatter_stopwords_rankdpmi_rankrnd.png', dpi=400)
-# Nota: en LOR el rank=0 si pvalor>0.01
-
-#%% Otros plots
-
-# RND vs RCS
-g = scatter_stopwords(dat, x_var='rel_norm_distance', y_var='rel_cosine_similarity')
-fig_ = g.get_figure()
-fig_.savefig('results/plots/scatter_rnd_rcs.png', dpi=400)
 
 def scatter_plt(data, x_var, y_var):
     """
@@ -111,18 +87,6 @@ def scatter_plt(data, x_var, y_var):
     cbar.ax.set_title('freq.')
     return ax
 
-# Freq and RND
-g = scatter_plt(dat, x_var='freq', y_var='rel_norm_distance')
-fig_ = g.get_figure()
-fig_.savefig('results/plots/scatter_freq_rnd.png', dpi=400)
-# Freq and RCS
-g = scatter_plt(dat, x_var='freq', y_var='rel_cosine_similarity')
-fig_ = g.get_figure()
-fig_.savefig('results/plots/scatter_freq_rcs.png', dpi=400)
-# Freq and LOGOODS
-g = scatter_plt(dat, x_var='freq', y_var='diff_pmi')
-fig_ = g.get_figure()
-fig_.savefig('results/plots/scatter_freq_dpmi.png', dpi=400)
 
 def scatter_freq_sw(data, x_var, y_var):
     """
@@ -139,23 +103,79 @@ def scatter_freq_sw(data, x_var, y_var):
     plt.ylabel(y_var)
     return ax
 
-# Freq and RND
+
+#%% 1: plot in original scale
+g = scatter_stopwords(dat_sw, x_var='diff_pmi', y_var='rel_norm_distance')
+# add means
+### nota: no se puede calcular el DPMI exacto porque hace falta la suma
+### de los counts de toda la matriz de cooc
+### --> uso odds_ratio para el promedio
+logodds_avg = log_oddsratio(
+    dat_sw['count_context_a'].sum(), dat_sw['count_notcontext_a'].sum()
+    , dat_sw['count_context_b'].sum(), dat_sw['count_notcontext_b'].sum()
+    , ci_level=0.95)[0]
+rnd_avg = dat_sw['rel_norm_distance'].mean()
+g.scatter(x=logodds_avg, y=rnd_avg, color='r', marker="x")
+fig_1 = g.get_figure()
+fig_1.savefig(f'results/plots/scatter_stopwords_dpmi_rnd_{res_id}.png', dpi=400)
+
+
+#%% 2: plot with rankings of words in abs value
+g = scatter_stopwords(dat_sw, x_var='rank_dpmi_abs', y_var='rank_rnd_abs')
+# add means
+rank_lor_avg = dat_sw['rank_dpmi_abs'].mean()
+rank_rnd_avg = dat_sw['rank_rnd_abs'].mean()
+g.scatter(x=rank_lor_avg, y=rank_rnd_avg, color='r', marker="x")
+fig_2 = g.get_figure()
+fig_2.savefig(f'results/plots/scatter_stopwords_rankdpmi_rankrnd_{res_id}.png', dpi=400)
+# Nota: en LOR el rank=0 si pvalor>0.01
+
+
+#%% RND vs RCS
+g = scatter_stopwords(dat, x_var='rel_norm_distance', y_var='rel_cosine_similarity')
+fig_ = g.get_figure()
+fig_.savefig(f'results/plots/scatter_rnd_rcs_{res_id}.png', dpi=400)
+
+
+#%% Freq and RND
+g = scatter_plt(dat, x_var='freq', y_var='rel_norm_distance')
+fig_ = g.get_figure()
+fig_.savefig(f'results/plots/scatter_freq_rnd_{res_id}.png', dpi=400)
+
+
+#%% Freq and RCS
+g = scatter_plt(dat, x_var='freq', y_var='rel_cosine_similarity')
+fig_ = g.get_figure()
+fig_.savefig(f'results/plots/scatter_freq_rcs_{res_id}.png', dpi=400)
+
+
+#%% Freq and DPMI
+g = scatter_plt(dat, x_var='freq', y_var='diff_pmi')
+fig_ = g.get_figure()
+fig_.savefig(f'results/plots/scatter_freq_dpmi_{res_id}.png', dpi=400)
+
+
+#%% stopwords: Freq and RND
 g = scatter_freq_sw(dat, x_var='freq', y_var='rel_norm_distance')
 fig_ = g.get_figure()
-fig_.savefig('results/plots/scatter_freq_rnd_sw.png', dpi=400)
-# Freq and RCS
+fig_.savefig(f'results/plots/scatter_freq_rnd_sw_{res_id}.png', dpi=400)
+
+
+#%% stopwords: Freq and RCS
 g = scatter_freq_sw(dat, x_var='freq', y_var='rel_cosine_similarity')
 fig_ = g.get_figure()
-fig_.savefig('results/plots/scatter_freq_rcs_sw.png', dpi=400)
-# Freq and LOGODDS
+fig_.savefig(f'results/plots/scatter_freq_rcs_sw_{res_id}.png', dpi=400)
+
+
+#%% stopwords: Freq and DPMI
 g = scatter_freq_sw(dat, x_var='freq', y_var='diff_pmi')
 fig_ = g.get_figure()
-fig_.savefig('results/plots/scatter_freq_dpmi_sw.png', dpi=400)
+fig_.savefig(f'results/plots/scatter_freq_dpmi_sw_{res_id}.png', dpi=400)
 
 
 #%% inspeccion visual
-get_cols = ['word','freq','count_total','count_context_a','count_context_b' \
-    ,'pmi_a','pmi_b','log_oddsratio', 'lower', 'upper', 'pvalue' \
-    ,'rel_norm_distance', 'rank_rnd_abs', 'rank_lor_abs']
-tmp = dat_sw[get_cols].copy()
-tmp.loc[tmp['rank_rnd_abs'] > 0.9].sort_values('rank_rnd_abs', ascending=False)
+# get_cols = ['word','freq','count_total','count_context_a','count_context_b' \
+#     ,'pmi_a','pmi_b','log_oddsratio', 'lower', 'upper', 'pvalue' \
+#     ,'rel_norm_distance', 'rank_rnd_abs', 'rank_lor_abs']
+# tmp = dat_sw[get_cols].copy()
+# tmp.loc[tmp['rank_rnd_abs'] > 0.9].sort_values('rank_rnd_abs', ascending=False)

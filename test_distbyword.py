@@ -1,13 +1,22 @@
 import numpy as np
 import pandas as pd
-import os, struct, datetime
+import os
+import sys
+import datetime
+import re
 
 from scripts.utils.corpora import load_vocab
 from metrics.glove import bias_byword
 
+
 #%% Corpus parameters
-VOCAB_FILE = "embeddings/vocab-C3-V20.txt" # wikipedia dump = C0
-EMBED_FILE = "embeddings/vectors-C3-V20-W8-D1-D100-R0.05-E150-S1.npy" # wikipedia dump = C0
+# default values
+VOCAB_FILE = "embeddings/vocab-C3-V20.txt"
+EMBED_FILE = "embeddings/glove-C3-V20-W8-D1-D100-R0.05-E150-S1.npy"
+# cmd values
+if len(sys.argv)>1 and sys.argv[1].endswith(".npy"):
+    VOCAB_FILE = sys.argv[1]
+    EMBED_FILE = sys.argv[2]
 
 #%% Estereotipos parameters
 TARGET_A = 'MALE_SHORT'
@@ -22,7 +31,7 @@ for f in os.listdir('words_lists'):
     words_lists[nombre] = [line.strip() for line in open('words_lists/' + f, 'r')]
 
 #%% Load corpus vocab dicts
-str2idx, idx2str, str2count = load_vocab(vocab_file=VOCAB_FILE)
+str2idx, idx2str, str2count = load_vocab(VOCAB_FILE)
 embed_matrix = np.load(EMBED_FILE)
 
 #%% words lists
@@ -42,10 +51,13 @@ least_biased = result.\
                 head(20)
 
 #%% save csv results
-result.to_csv(f'results/csv/dist_byword_{TARGET_A}-{TARGET_B}.csv', index=False)
+results_name = re.search("^.+/(.+C\d+)-.+$", EMBED_FILE).group(1)
+result.to_csv(
+    f'results/csv/distbyword_{results_name}_{TARGET_A}-{TARGET_B}.csv', index=False)
 
 #%% print results
-with open(f'results/dist_byword_{TARGET_A}-{TARGET_B}.md', "w") as f:
+with open(f'results/distbyword_{results_name}_{TARGET_A}-{TARGET_B}.md', "w" \
+         , encoding="utf-8") as f:
     print(
         f'with {EMBED_FILE} :\n'
         ,f'\n### Most biased {TARGET_A}/{TARGET_B} \n'
