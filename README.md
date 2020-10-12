@@ -159,7 +159,6 @@ b) stopwords and word frequency
 * plots are saved in `results/plots/`
 
 Example:
-
 ```
 FILE_DPMI="results/csv/dpmibyword_C3_MALE_SHORT-FEMALE_SHORT.csv"
 #FILE_WE="results/csv/distbyword_glove-C3_MALE_SHORT-FEMALE_SHORT.csv"
@@ -167,11 +166,17 @@ FILE_WE="results/csv/distbyword_w2v-C3_MALE_SHORT-FEMALE_SHORT.csv"
 python -u test_stopwords.py $FILE_DPMI $FILE_WE
 ```
 
-<!-- seguir desde aca -->
-
 **(3)** Get plots for arbitrary target words\
-`python test_frequency.py`
+`python test_frequency.py <vocab_file> <embed_file>`
 * plots are saved in `results/plots/`
+
+Example:
+```
+VOCABFILE="embeddings/vocab-C3-V20.txt"
+EMBEDFILE="embeddings/glove-C3-V20-W8-D1-D100-R0.05-E150-S1.npy"
+# EMBEDFILE="embeddings/w2v-C3-V20-W8-D100-SG0.npy"
+python -u test_frequency.py $VOCABFILE $EMBEDFILE
+```
 
 ### Influence of frequency in bias metrics
 
