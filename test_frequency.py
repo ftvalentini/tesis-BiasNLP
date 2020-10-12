@@ -1,6 +1,8 @@
 import numpy as np
 import pandas as pd
-import os, datetime
+import sys
+import datetime
+import re
 
 import seaborn as sns
 import matplotlib
@@ -11,8 +13,15 @@ from metrics.glove import bias_byword
 
 
 #%% Corpus parameters
-VOCAB_FILE = "embeddings/vocab-C3-V20.txt" # enwiki = C3
-EMBED_FILE = "embeddings/vectors-C3-V20-W8-D1-D100-R0.05-E150-S1.npy" # enwiki = C3
+# default values
+VOCAB_FILE = "embeddings/vocab-C3-V20.txt"
+EMBED_FILE = "embeddings/glove-C3-V20-W8-D1-D100-R0.05-E150-S1.npy"
+# cmd values
+if len(sys.argv)>1 and sys.argv[1].endswith(".txt"):
+    VOCAB_FILE = sys.argv[1]
+    EMBED_FILE = sys.argv[2]
+
+res_id = re.search("^.+/(.+C\d+)-.+$", EMBED_FILE).group(1)
 
 #%% target pairs parameters
 TARGETS = [
@@ -66,7 +75,7 @@ for i, f1 in enumerate(features):
             axs[i][j].axvline(0, ls='--', color='black', linewidth=0.5)
             axs[i][j].set_ylabel(f1)
             axs[i][j].set_xlabel(f2)
-fig.savefig('results/plots/scatter_pronounpairs_corrs.png', dpi=400)
+fig.savefig(f'results/plots/scatter_pronounpairs_corrs_{res_id}.png', dpi=400)
 
 
 #%% Plots
@@ -90,4 +99,4 @@ for i in range(len(results)):
     axs[i].set_title(f'{name1}_{name2} (freq. ratio = {freq_ratio})')
     # cbar = plt.colorbar(scatter, ax=ax)
     # cbar.ax.set_title('freq.')
-fig.savefig('results/plots/scatter_pronounpairs_freq_rnd.png', dpi=400)
+fig.savefig(f'results/plots/scatter_pronounpairs_freq_rnd_{res_id}.png', dpi=400)
