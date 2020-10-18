@@ -1,6 +1,6 @@
 
 # iterate over corpora ids
-for i in {4..8}; do
+for i in $(seq 4 8); do
   # parameters
   VOCABFILE="embeddings/vocab-C$i-V20.txt"
   MATFILE="embeddings/w2v-C$i-V20-W8-D100-SG0.npy"
