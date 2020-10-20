@@ -9,18 +9,19 @@ from scripts.utils.corpora import load_vocab
 from metrics.glove import bias_byword
 
 
-#%% Corpus parameters
+#%% Parameters
 # default values
 VOCAB_FILE = "embeddings/vocab-C3-V20.txt"
 EMBED_FILE = "embeddings/glove-C3-V20-W8-D1-D100-R0.05-E150-S1.npy"
+TARGET_A = 'MALE_SHORT'
+TARGET_B = 'FEMALE_SHORT'
 # cmd values
 if len(sys.argv)>1 and sys.argv[1].endswith(".npy"):
     VOCAB_FILE = sys.argv[1]
     EMBED_FILE = sys.argv[2]
-
-#%% Estereotipos parameters
-TARGET_A = 'MALE_SHORT'
-TARGET_B = 'FEMALE_SHORT'
+    if len(sys.argv) >= 4:
+        TARGET_A = sys.argv[3]
+        TARGET_B = sys.argv[4]
 
 print("START:", datetime.datetime.now())
 
@@ -44,10 +45,10 @@ print("Computing bias wrt each context word...")
 result = bias_byword(
     embed_matrix, words_a, words_b, words_context, str2idx, str2count)
 most_biased = result.\
-                sort_values(['rel_norm_distance','freq'], ascending=[False, False]). \
+                sort_values(['rel_cosine_similarity','freq'], ascending=[False, False]). \
                 head(20)
 least_biased = result.\
-                sort_values(['rel_norm_distance','freq'], ascending=[True, False]). \
+                sort_values(['rel_cosine_similarity','freq'], ascending=[True, False]). \
                 head(20)
 
 #%% save csv results
