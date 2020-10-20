@@ -65,9 +65,9 @@ def main(corpus_id, corpus_file, vocab_file, outdir, **kwargs_w2v):
     print("training vectors...")
     model = train_w2v(corpus_file, **kwargs_w2v)
     print("saving model...")
+    kw = kwargs_w2v
     basename = \
         f"w2v-C{corpus_id}-V{kw['min_count']}-W{kw['window']}-D{kw['size']}-SG{kw['sg']}"
-    kw = kwargs_w2v
     model_file = str(Path(outdir) / "embeddings" / f"{basename}.model")
     model.save(model_file)
     print("testing vocabulary...")
@@ -87,7 +87,7 @@ if __name__ == "__main__":
     required.add_argument('--id', type=int, required=True)
     required.add_argument('--corpus', type=str, required=True)
     required.add_argument('--vocab', type=str, required=True)
-    required.add_argument('--outdir', type=str, required=True)
+    required.add_argument('--outdir', type=str, required=True, nargs='?', const='')
     required.add_argument('--size', type=int, required=True)
     required.add_argument('--window', type=int, required=True)
     required.add_argument('--count', type=int, required=True)
