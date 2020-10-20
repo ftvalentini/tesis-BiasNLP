@@ -55,7 +55,7 @@ assert np.all(results[0]['idx'] == results[1]['idx'])
 gdat = results[0][['freq']]
 for i, targets in enumerate(TARGETS):
     colname = f'rnd_{"-".join(targets[0])}_{"-".join(targets[1])}'
-    gdat.loc[:,colname] = results[i].loc[:,'rel_norm_distance']
+    gdat.loc[:,colname] = results[i].loc[:,'rel_cosine_similarity']
 
 features = [c for c in gdat.columns if c not in ['idx','word','freq']]
 n_features = len(features)
@@ -85,12 +85,12 @@ axs = axs.ravel()
 fig.subplots_adjust(hspace=0.4, wspace=0.4)
 for i in range(len(results)):
     axs[i].scatter(
-        'freq', 'rel_norm_distance', c='freq', cmap='viridis'
+        'freq', 'rel_cosine_similarity', c='freq', cmap='viridis'
         ,s=1, norm=matplotlib.colors.LogNorm(), data=results[i])
     axs[i].set_xscale('log')
     axs[i].axhline(0, ls='--', color='black', linewidth=0.5)
     axs[i].set_xlabel('freq')
-    axs[i].set_ylabel('rel_norm_distance')
+    axs[i].set_ylabel('rel_cosine_similarity')
     count1 = sum([str2count[w] for w in TARGETS[i][0]])
     count2 = sum([str2count[w] for w in TARGETS[i][1]])
     freq_ratio = np.round(count1 / count2, 2)
