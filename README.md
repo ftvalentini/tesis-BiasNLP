@@ -17,8 +17,9 @@ Follow these steps to create the data needed to run tests. Code was tested with:
 
 ### GloVe
 
-**(0)** Build GloVe from source so that it can be executed\
-`make -C "GloVe"` (run only once)
+**(0)** Build GloVe from source only once so that it can be executed\
+`make -C "GloVe"` (in Windows)\
+`cd GloVe && make` (in Linux)
 
 **(1)** Train GloVe
 `scripts/01-embed.sh scripts/glove.config`\
@@ -28,7 +29,7 @@ Follow these steps to create the data needed to run tests. Code was tested with:
 * `CORPUS_ID` is defined according to order in `CORPORA` list in `scripts/01-embed.sh`
 
 **(2)** Extract GloVe word vectors matrix\
-`python scripts/02-build_embeddings_matrix.py <vocab_file.txt> <embed_file.bin> <out_file.npy>`
+`python scripts/02-build_glove_matrix.py <vocab_file.txt> <embed_file.bin> <out_file.npy>`
 * Reads `.bin` and saves all vectors (word vectors, context vectors and both biases) as a tuple in a `.npy` file
 
 Example:
@@ -55,7 +56,7 @@ CORPUSID=3
 VOCABFILE="embeddings/vocab-C3-V20.txt"
 CORPUSFILE="corpora/enwikiselect.txt"
 OUTDIR="E:\\tesis-BiasNLP"
-SG=0 # 0:cbow, 1:sgns
+SG=1 # 0:cbow, 1:sgns
 SIZE=100
 WINDOW=8
 MINCOUNT=20
@@ -99,10 +100,6 @@ Get the value of RND bias in corpus for given sets of target and context words (
 **(2)** Get value of relative norm distance\
 `python test_rnd.py`
 * Results are saved as `.md` in `results/`
-
-<!-- VER DESDE aca para ABAJO: -->
-  <!-- SE TIENE QUE PODER CAMBIAR LOS EMBEDDINGS COMO PARAM PARA USAR W2V -->
-
 
 ### RND and relative cosine similarity (RCS) by word
 
@@ -161,8 +158,8 @@ b) stopwords and word frequency
 Example:
 ```
 FILE_DPMI="results/csv/dpmibyword_C3_MALE_SHORT-FEMALE_SHORT.csv"
-#FILE_WE="results/csv/distbyword_glove-C3_MALE_SHORT-FEMALE_SHORT.csv"
-FILE_WE="results/csv/distbyword_w2v-C3_MALE_SHORT-FEMALE_SHORT.csv"
+FILE_WE="results/csv/distbyword_glove-C3_MALE_SHORT-FEMALE_SHORT.csv"
+#FILE_WE="results/csv/distbyword_w2v-C3_MALE_SHORT-FEMALE_SHORT.csv"
 python -u test_stopwords.py $FILE_DPMI $FILE_WE
 ```
 
@@ -210,6 +207,21 @@ SEED=88
 python -u scripts/make_undersampled_corpora.py $CORPUSFILE $VOCABFILE $COUNTSFILE $OUTDIR $SEED
 python -u scripts/make_oversampled_corpora.py $CORPUSFILE $VOCABFILE $COUNTSFILE $OUTDIR $SEED
 ```
+
+<!-- **(3)**
+
+chmod +x scripts/01-embed.sh
+chmod +x scripts/train_multiple_glove.sh
+nohup scripts/train_multiple_glove.sh &
+tail -f nohup.out
+
+chmod +x scripts/train_multiple_w2v.sh
+nohup bash scripts/train_multiple_w2v.sh &
+tail -f nohup.out
+
+
+-->
+
 
 ### Bias gradient in GloVe
 
