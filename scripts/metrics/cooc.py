@@ -96,6 +96,144 @@ def bias_logoddsratio(cooc_matrix, words_target_a, words_target_b, words_context
     return result
 
 
+def dpmi_byword(cooc_matrix, words_target_a, words_target_b, words_context, str2idx
+                ,ci_level=.95):
+    """
+    Return DataFrame with DPMI and log(OddsRatio) A/B for each word in
+    words_context and the relevant coocurrence counts
+    """
+    # handling target words out of vocab
+    words_target = words_target_a + words_target_b
+    words_outof_vocab = [w for w in words_target if w not in str2idx]
+    if len(words_outof_vocab) == len(words_target):
+        raise ValueError("ALL WORDS ARE OUT OF VOCAB")
+    if words_outof_vocab:
+        print(f'{", ".join(words_outof_vocab)} \nNOT IN VOCAB')
+    # matrix statistics
+    C = cooc_matrix
+    # words indices
+    idx_a = [str2idx[w] for w in words_target_a if w not in words_outof_vocab]
+    idx_b = [str2idx[w] for w in words_target_b if w not in words_outof_vocab]
+    idx_c = sorted(
+            [str2idx[w] for w in words_context if w not in words_outof_vocab])
+        # words context siempre sorted segun indice!!!
+    # frecuencias
+    print("Computing counts...\n")
+    total_count = C.sum() # total
+    count_a = C[idx_a,:].sum() # total target A
+    count_b = C[idx_b,:].sum() # total target B
+    counts_context = C[:,idx_c].sum(axis=0) # totales de cada contexto
+    counts_context_a = C[idx_a,:][:,idx_c].sum(axis=0) # de cada contexto con target A
+    counts_context_b = C[idx_b,:][:,idx_c].sum(axis=0) # de cada contexto con target A
+    counts_notcontext_a = count_a - counts_context_a # de A sin cada contexto
+    counts_notcontext_b = count_b - counts_context_b # de B sin cada contexto
+    # probabilidades
+    print("Computing probabilities...\n")
+    prob_a = count_a / total_count
+    prob_b = count_b / total_count
+    probs_context = counts_context / total_count
+    probs_context_a = counts_context_a / total_count
+    probs_context_b = counts_context_b / total_count
+    # PMI
+    pmi_a = np.log(probs_context_a / (prob_a * probs_context))
+    pmi_b = np.log(probs_context_b / (prob_b * probs_context))
+    # insert en DataFrame  segun word index
+        # words context siempre sorted segun indice!!!
+    print("Putting results in DataFrame...\n")
+    str2idx_context = {w: str2idx[w] for w in words_context}
+    df = pd.DataFrame(str2idx_context.items(), columns=['word','idx'])
+    df['count_total'] = counts_context.T
+    df['count_context_a'] = counts_context_a.T
+    df['count_context_b'] = counts_context_b.T
+    df['pmi_a'] = pmi_a.T
+    df['pmi_b'] = pmi_b.T
+    df['diff_pmi'] = df['pmi_a'] - df['pmi_b']
+    df['count_notcontext_a'] = counts_notcontext_a.T
+    df['count_notcontext_b'] = counts_notcontext_b.T
+    # add calculo de odds ratio
+    print("Computing Odds Ratios...\n")
+    def log_oddsratio_(a, b, c, d, ci_level):
+        return pd.Series(log_oddsratio(a, b, c, d, ci_level=ci_level))
+    df_odds = df.apply(
+        lambda d: log_oddsratio_(d['count_context_a'], d['count_notcontext_a'] \
+                                ,d['count_context_b'], d['count_notcontext_b']
+                                , ci_level=ci_level), axis=1)
+    df_odds.columns = ['log_oddsratio','lower','upper','pvalue']
+    df_odds['odds_ratio'] = np.exp(df_odds['log_oddsratio'])
+    # final result
+    result = pd.concat([df, df_odds], axis=1)
+    return result
+
+
+def cosine_similarities(cooc_matrix, idx_target, idx_context):
+    """Return relative cosin similarity values between avg of words_target and
+    words_context
+    Param:
+        - cooc_matrix: (V+1)x(V+1) matrix where column indices are indices of
+        words given by str2idx
+    Notes:
+        - Rows of cooc matrix are treated as word vectors
+        - Must pass words indices (not words)
+        - It works OK if len(idx_target) == 1
+    """
+    M = cooc_matrix
+    avg_target = M[idx_target,:].mean(axis=0)
+    M_c = M[idx_context,:] # matriz de contexts words
+    # similitud coseno (dot product)
+    rel_sims = M_c.dot(avg_target.T) / \
+            np.linalg.norm(avg_target) * scipy.sparse.linalg.norm(M_c, axis=1)
+    rel_sims = rel_sims.ravel()
+    return rel_sims
+
+
+def relative_cosine_diffs(
+                        cooc_matrix, idx_target_a, idx_target_b, idx_context):
+    """Return relative cosine difference between A/B wrt to each Context
+    Param:
+        - cooc_matrix: (V+1)x(V+1) matrix where column indices are indices of
+        words
+    Notes:
+        - Rows of cooc matrix are treated as word vectors
+        - Must pass words indices (not words)
+    """
+    M = cooc_matrix
+    # distancias de avg(target) cra cada context
+    cos_a = cosine_similarities(M, idx_target_a, idx_context)
+    cos_b = cosine_similarities(M, idx_target_b, idx_context)
+    # > 0: mas cerca de A que de B --> bias "hacia" A
+    diffs = cos_a - cos_b
+    return diffs
+
+
+def order2_byword(cooc_matrix, words_target_a, words_target_b, words_context
+                ,str2idx, str2count):
+    """ Return DataFrame with
+        - 2nd order coocurrence bias A/B of each Context word
+        - freq of each word
+    """
+    # handling words out of vocab (asume que todas las context estan en vocab)
+    words_target = words_target_a + words_target_b
+    words_target_out = [w for w in words_target if w not in str2idx]
+    if len(words_target_out) == len(words_target):
+        raise ValueError("ALL TARGET WORDS ARE OUT OF VOCAB")
+    if words_target_out:
+        print(f'{", ".join(words_target_out)} \nNOT IN VOCAB')
+    # words indices
+    idx_a = sorted([str2idx[w] for w in words_target_a \
+                                                if w not in words_target_out])
+    idx_b = sorted([str2idx[w] for w in words_target_b \
+                                                if w not in words_target_out])
+    idx_c = sorted([str2idx[w] for w in words_context])
+    # get bias for each c
+    diffs_cosine = relative_cosine_diffs(cooc_matrix, idx_a, idx_b, idx_c)
+    # results DataFrame (todos los resultados sorted by idx)
+    str2idx_context = {w: str2idx[w] for w in words_context}
+    str2count_context = {w: str2count[w] for w in str2idx_context}
+    results = pd.DataFrame(str2idx_context.items(), columns=['word','idx'])
+    results['order2'] = diffs_cosine
+    return results
+
+
 def differential_bias_bydoc(cooc_matrix
                             ,words_target_a, words_target_b, words_context
                             ,str2idx
@@ -173,72 +311,3 @@ def differential_bias_bydoc(cooc_matrix
             result['diff_bias'].append(diff_bias)
     pbar.close()
     return pd.DataFrame(result)
-
-
-def bias_byword(cooc_matrix, words_target_a, words_target_b, words_context, str2idx
-                ,ci_level=.95):
-    """
-    Return DataFrame with log(OddsRatio) A/B for each word in words_context \
-    and the relevant coocurrence counts
-    """
-    # handling target words out of vocab
-    words_target = words_target_a + words_target_b
-    words_outof_vocab = [w for w in words_target if w not in str2idx]
-    if len(words_outof_vocab) == len(words_target):
-        raise ValueError("ALL WORDS ARE OUT OF VOCAB")
-    if words_outof_vocab:
-        print(f'{", ".join(words_outof_vocab)} \nNOT IN VOCAB')
-    # matrix statistics
-    C = cooc_matrix
-    # words indices
-    idx_a = [str2idx[w] for w in words_target_a if w not in words_outof_vocab]
-    idx_b = [str2idx[w] for w in words_target_b if w not in words_outof_vocab]
-    idx_c = sorted(
-            [str2idx[w] for w in words_context if w not in words_outof_vocab])
-        # words context siempre sorted segun indice!!!
-    # frecuencias
-    print("Computing counts...\n")
-    total_count = C.sum() # total
-    count_a = C[idx_a,:].sum() # total target A
-    count_b = C[idx_b,:].sum() # total target B
-    counts_context = C[:,idx_c].sum(axis=0) # totales de cada contexto
-    counts_context_a = C[idx_a,:][:,idx_c].sum(axis=0) # de cada contexto con target A
-    counts_context_b = C[idx_b,:][:,idx_c].sum(axis=0) # de cada contexto con target A
-    counts_notcontext_a = count_a - counts_context_a # de A sin cada contexto
-    counts_notcontext_b = count_b - counts_context_b # de B sin cada contexto
-    # probabilidades
-    print("Computing probabilities...\n")
-    prob_a = count_a / total_count
-    prob_b = count_b / total_count
-    probs_context = counts_context / total_count
-    probs_context_a = counts_context_a / total_count
-    probs_context_b = counts_context_b / total_count
-    # PMI
-    pmi_a = np.log(probs_context_a / (prob_a * probs_context))
-    pmi_b = np.log(probs_context_b / (prob_b * probs_context))
-    # insert en DataFrame  segun word index
-        # words context siempre sorted segun indice!!!
-    print("Putting results in DataFrame...\n")
-    str2idx_context = {w: str2idx[w] for w in words_context}
-    df = pd.DataFrame(str2idx_context.items(), columns=['word','idx'])
-    df['count_total'] = counts_context.T
-    df['count_context_a'] = counts_context_a.T
-    df['count_context_b'] = counts_context_b.T
-    df['pmi_a'] = pmi_a.T
-    df['pmi_b'] = pmi_b.T
-    df['diff_pmi'] = df['pmi_a'] - df['pmi_b']
-    df['count_notcontext_a'] = counts_notcontext_a.T
-    df['count_notcontext_b'] = counts_notcontext_b.T
-    # add calculo de odds ratio
-    print("Computing Odds Ratios...\n")
-    def log_oddsratio_(a, b, c, d, ci_level):
-        return pd.Series(log_oddsratio(a, b, c, d, ci_level=ci_level))
-    df_odds = df.apply(
-        lambda d: log_oddsratio_(d['count_context_a'], d['count_notcontext_a'] \
-                                ,d['count_context_b'], d['count_notcontext_b']
-                                , ci_level=ci_level), axis=1)
-    df_odds.columns = ['log_oddsratio','lower','upper','pvalue']
-    df_odds['odds_ratio'] = np.exp(df_odds['log_oddsratio'])
-    # final result
-    result = pd.concat([df, df_odds], axis=1)
-    return result
