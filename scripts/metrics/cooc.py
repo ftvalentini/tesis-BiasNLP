@@ -1,6 +1,8 @@
 import numpy as np
 import pandas as pd
 import json
+import scipy.sparse
+import scipy.sparse.linalg
 from scipy.stats import norm
 import statsmodels.api as sm
 from tqdm import tqdm
@@ -177,13 +179,15 @@ def cosine_similarities(cooc_matrix, idx_target, idx_context):
         - It works OK if len(idx_target) == 1
     """
     M = cooc_matrix
-    avg_target = M[idx_target,:].mean(axis=0)
+    sum_target = M[idx_target,:].sum(axis=0)
     M_c = M[idx_context,:] # matriz de contexts words
-    # similitud coseno (dot product)
-    rel_sims = M_c.dot(avg_target.T) / \
-            np.linalg.norm(avg_target) * scipy.sparse.linalg.norm(M_c, axis=1)
-    rel_sims = rel_sims.ravel()
-    return rel_sims
+    # similitud coseno
+    productos = M_c.dot(sum_target.T)
+    denominadores = np.linalg.norm(sum_target) * \
+                                        scipy.sparse.linalg.norm(M_c, axis=1)
+    rel_sims = productos.ravel() / denominadores.ravel()
+    out = np.array(rel_sims).ravel()
+    return out
 
 
 def relative_cosine_diffs(
@@ -206,7 +210,7 @@ def relative_cosine_diffs(
 
 
 def order2_byword(cooc_matrix, words_target_a, words_target_b, words_context
-                ,str2idx, str2count):
+                ,str2idx):
     """ Return DataFrame with
         - 2nd order coocurrence bias A/B of each Context word
         - freq of each word
@@ -228,7 +232,6 @@ def order2_byword(cooc_matrix, words_target_a, words_target_b, words_context
     diffs_cosine = relative_cosine_diffs(cooc_matrix, idx_a, idx_b, idx_c)
     # results DataFrame (todos los resultados sorted by idx)
     str2idx_context = {w: str2idx[w] for w in words_context}
-    str2count_context = {w: str2count[w] for w in str2idx_context}
     results = pd.DataFrame(str2idx_context.items(), columns=['word','idx'])
     results['order2'] = diffs_cosine
     return results

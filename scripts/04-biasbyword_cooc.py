@@ -36,16 +36,16 @@ def main(vocab_file, matrix_file, target_a, target_b):
     print("Saving DPMI results in csv...")
     results_name = re.search("^.+/cooc-(C\d+)-.+$", matrix_file).group(1)
     outfile = \
-        f'results/csv/biasbyword_dpmi_{results_name}_{target_a}-{target_b}.csv'
+        f'results/csv/biasbyword_dpmi-{results_name}_{target_a}-{target_b}.csv'
     res_dpmi.to_csv(outfile, index=False)
 
     print("Computing order2 bias wrt each context word...")
     res_order2 = order2_byword(
-            cooc_matrix, words_a, words_b, words_context, str2idx, str2count)
+            cooc_matrix, words_a, words_b, words_context, str2idx)
 
     print("Saving order2 results in csv...")
     outfile = \
-        f'results/csv/biasbyword_order2_{results_name}_{target_a}-{target_b}.csv'
+        f'results/csv/biasbyword_order2-{results_name}_{target_a}-{target_b}.csv'
     res_order2.to_csv(outfile, index=False)
 
 
