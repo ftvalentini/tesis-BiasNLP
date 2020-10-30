@@ -69,12 +69,12 @@ for i, f1 in enumerate(features):
             axs[i][j].axvline(0, ls='--', color='black', linewidth=0.5)
             axs[i][j].set_xlabel(f2)
         if i > j:
-            axs[i][j].scatter(f1, f2, c='freq', s=0.5, cmap='viridis'
+            axs[i][j].scatter(f2, f1, c='freq', s=0.5, cmap='viridis'
                         ,norm=matplotlib.colors.LogNorm(), data=gdat)
             axs[i][j].axhline(0, ls='--', color='black', linewidth=0.5)
             axs[i][j].axvline(0, ls='--', color='black', linewidth=0.5)
-            axs[i][j].set_ylabel(f1)
             axs[i][j].set_xlabel(f2)
+            axs[i][j].set_ylabel(f1)
 fig.savefig(f'results/plots/scatter_pronounpairs_corrs_{res_id}.png', dpi=400)
 
 
