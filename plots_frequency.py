@@ -6,7 +6,6 @@ import re
 
 import seaborn as sns
 import matplotlib.pyplot as plt
-import scipy.stats as stats
 
 from statsmodels.nonparametric.smoothers_lowess import lowess
 
@@ -59,12 +58,12 @@ def boxplots_plt(data, x_var, y_var, bins):
     """
     Cut x_var in bins and make one boxplot per bin
     """
-    freq_bins = pd.cut(np.log10(dat[x_var]), bins=bins)
+    freq_bins = pd.cut(np.log10(data[x_var]), bins=bins)
     nobs = freq_bins.value_counts().values
     nobs = [str(x) for x in nobs.tolist()]
     nobs = ["n: " + i for i in nobs]
     fig, ax = plt.subplots()
-    ax = sns.boxplot(x=freq_bins, y=dat[y_var], showfliers=False)
+    ax = sns.boxplot(x=freq_bins, y=data[y_var], showfliers=False)
     ax.axhline(0, ls='--', color='black', linewidth=0.5)
     labels_ypos = ax.get_ylim()[1]
     for i in range(len(nobs)):
