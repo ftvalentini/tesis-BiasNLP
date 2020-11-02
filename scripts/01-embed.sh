@@ -11,17 +11,8 @@ MEMORY=${4:-"6"}
 NUM_THREADS=${5:-"6"}
 VERBOSE=${6:-"2"}
 
-CORPORA=(
-$CORPORA_DIR/simplewikiselect.txt # ID 0
-$CORPORA_DIR/test.txt # ID 1
-$CORPORA_DIR/test_short.txt # ID 2
-$CORPORA_DIR/enwikiselect.txt # ID 3
-$CORPORA_DIR/enwikiselect_undersampled_0.25.txt # ID 4
-$CORPORA_DIR/enwikiselect_undersampled_0.5.txt # ID 5
-$CORPORA_DIR/enwikiselect_undersampled_1.0.txt # ID 6
-$CORPORA_DIR/enwikiselect_undersampled_2.0.txt # ID 7
-$CORPORA_DIR/enwikiselect_undersampled_4.0.txt # ID 8
-)
+# get ID of each corpus
+source scripts/corpora_dict
 
 # DEFAULT
 CORPUS_ID=0
