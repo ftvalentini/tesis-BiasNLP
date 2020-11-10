@@ -35,7 +35,9 @@ def pmi(cooc_matrix, words_target, words_context, str2idx, alpha=1.0):
     Pj = Cj / total_count # prob marginal context
     # PMI
     pmi = np.log(Pij / (Pi * Pj))
-    return pmi
+    # PPMI
+    ppmi = max(0, pmi)
+    return ppmi
 
 
 def log_oddsratio(counts_a, counts_not_a, counts_b, counts_not_b, ci_level=None):
@@ -137,8 +139,8 @@ def dpmi_byword(cooc_matrix, words_target_a, words_target_b, words_context, str2
     probs_context_a = counts_context_a / total_count
     probs_context_b = counts_context_b / total_count
     # PMI
-    pmi_a = np.log(probs_context_a / (prob_a * probs_context))
-    pmi_b = np.log(probs_context_b / (prob_b * probs_context))
+    ppmi_a = np.maximum(0, np.log(probs_context_a / (prob_a * probs_context)))
+    ppmi_b = np.maximum(0, np.log(probs_context_b / (prob_b * probs_context)))
     # insert en DataFrame  segun word index
         # words context siempre sorted segun indice!!!
     print("Putting results in DataFrame...\n")
@@ -147,9 +149,9 @@ def dpmi_byword(cooc_matrix, words_target_a, words_target_b, words_context, str2
     df['count_total'] = counts_context.T
     df['count_context_a'] = counts_context_a.T
     df['count_context_b'] = counts_context_b.T
-    df['pmi_a'] = pmi_a.T
-    df['pmi_b'] = pmi_b.T
-    df['diff_pmi'] = df['pmi_a'] - df['pmi_b']
+    df['ppmi_a'] = ppmi_a.T
+    df['ppmi_b'] = ppmi_b.T
+    df['diff_ppmi'] = df['ppmi_a'] - df['ppmi_b']
     df['count_notcontext_a'] = counts_notcontext_a.T
     df['count_notcontext_b'] = counts_notcontext_b.T
     # add calculo de odds ratio
@@ -167,40 +169,40 @@ def dpmi_byword(cooc_matrix, words_target_a, words_target_b, words_context, str2
     return result
 
 
-def cosine_similarities(cooc_matrix, idx_target, idx_context):
+def cosine_similarities(M, idx_target, idx_context):
     """Return relative cosin similarity values between avg of words_target and
     words_context
     Param:
-        - cooc_matrix: (V+1)x(V+1) matrix where column indices are indices of
-        words given by str2idx
+        - M: (V+1)x(V+1) matrix where row/column indices are indices of
+        words given by str2idx (it can be cooc. matrix or PPMI matrix)
     Notes:
-        - Rows of cooc matrix are treated as word vectors
+        - Rows of M are treated as word vectors
         - Must pass words indices (not words)
         - It works OK if len(idx_target) == 1
     """
-    M = cooc_matrix
-    sum_target = M[idx_target,:].sum(axis=0)
+    avg_target = M[idx_target,:].mean(axis=0)
     M_c = M[idx_context,:] # matriz de contexts words
+    del M
     # similitud coseno
-    productos = M_c.dot(sum_target.T)
-    denominadores = np.linalg.norm(sum_target) * \
+    productos = M_c.dot(avg_target.T)
+    denominadores = np.linalg.norm(avg_target) * \
                                         scipy.sparse.linalg.norm(M_c, axis=1)
+    # denominadores = scipy.sparse.linalg.norm(M_c, axis=1)
+    # denominadores *= np.linalg.norm(avg_target)
     rel_sims = productos.ravel() / denominadores.ravel()
     out = np.array(rel_sims).ravel()
     return out
 
 
-def relative_cosine_diffs(
-                        cooc_matrix, idx_target_a, idx_target_b, idx_context):
+def relative_cosine_diffs(M, idx_target_a, idx_target_b, idx_context):
     """Return relative cosine difference between A/B wrt to each Context
     Param:
-        - cooc_matrix: (V+1)x(V+1) matrix where column indices are indices of
-        words
+        - M: (V+1)x(V+1) matrix where row/column indices are indices of
+        words (it can be cooc matrix or PPMI matrix)
     Notes:
-        - Rows of cooc matrix are treated as word vectors
+        - Rows of M are treated as word vectors
         - Must pass words indices (not words)
     """
-    M = cooc_matrix
     # distancias de avg(target) cra cada context
     cos_a = cosine_similarities(M, idx_target_a, idx_context)
     cos_b = cosine_similarities(M, idx_target_b, idx_context)
@@ -209,11 +211,15 @@ def relative_cosine_diffs(
     return diffs
 
 
-def order2_byword(cooc_matrix, words_target_a, words_target_b, words_context
-                ,str2idx):
-    """ Return DataFrame with
+def order2_byword(M, words_target_a, words_target_b, words_context, str2idx
+                  ,n_dim=None):
+    """
+    Return DataFrame with
         - 2nd order coocurrence bias A/B of each Context word
         - freq of each word
+    Param:
+        - M: scipy.sparse matrix (Cooc. or PPMI matrix)
+        - n_dim: use first n_dim of each row if not None
     """
     # handling words out of vocab (asume que todas las context estan en vocab)
     words_target = words_target_a + words_target_b
@@ -229,7 +235,9 @@ def order2_byword(cooc_matrix, words_target_a, words_target_b, words_context
                                                 if w not in words_target_out])
     idx_c = sorted([str2idx[w] for w in words_context])
     # get bias for each c
-    diffs_cosine = relative_cosine_diffs(cooc_matrix, idx_a, idx_b, idx_c)
+    if n_dim:
+        M = M[:,:n_dim+2] # +1: idx=0 esta vacio / +1: py excluye upper lim
+    diffs_cosine = relative_cosine_diffs(M, idx_a, idx_b, idx_c)
     # results DataFrame (todos los resultados sorted by idx)
     str2idx_context = {w: str2idx[w] for w in words_context}
     results = pd.DataFrame(str2idx_context.items(), columns=['word','idx'])

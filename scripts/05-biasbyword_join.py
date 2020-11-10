@@ -42,18 +42,24 @@ def main(corpus_id, target_a, target_b):
         'idx','word','freq'
         ,'log_oddsratio','order2','cosine_glove','cosine_w2v'
         ,'pvalue','count_total','count_context_a','count_context_b'
-        ,'pmi_a','pmi_b','lower','upper']
+        ,'ppmi_a','ppmi_b','lower','upper']
     df = df[get_cols]
 
     # oddsratio
     df['oddsratio'] = np.exp(df['log_oddsratio'])
 
+    # dppmi
+    df['dppmi'] = df['ppmi_a'] - df['ppmi_b']
+
     # rankings
-    # abs(log_oddsratio) solo si p-value < 0.01
-    lor_abs = df.loc[df['pvalue'] < 0.01]['log_oddsratio'].abs()
-    rank_lor_abs = stats.rankdata(lor_abs, "average")/len(lor_abs)
-    df.loc[df['pvalue'] < 0.01, 'rank_lor_abs'] = rank_lor_abs
-    df.loc[df['pvalue'] >= 0.01, 'rank_lor_abs'] = 0.0
+    # # abs(log_oddsratio) solo si p-value < 0.01
+    # lor_abs = df.loc[df['pvalue'] < 0.01]['log_oddsratio'].abs()
+    # rank_lor_abs = stats.rankdata(lor_abs, "average")/len(lor_abs)
+    # df.loc[df['pvalue'] < 0.01, 'rank_lor_abs'] = rank_lor_abs
+    # df.loc[df['pvalue'] >= 0.01, 'rank_lor_abs'] = 0.0
+    # abs(dppmi)
+    dppmi_abs = df['dppmi'].abs()
+    df['rank_dppmi_abs'] = stats.rankdata(dppmi_abs, "average")/len(dppmi_abs)
     # order2
     order2_abs = df['order2'].abs()
     df['rank_order2_abs'] = stats.rankdata(order2_abs, "average")/len(order2_abs)
