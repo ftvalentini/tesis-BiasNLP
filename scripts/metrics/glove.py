@@ -36,6 +36,7 @@ def cosine_similarities(embed_matrix, idx_target, idx_context):
     M_c = M[:,idx_context] # matriz de contexts words
     # similitud coseno (dot product)
     # (context van a estar normalizados -- targets se "desnormalizan" al promediar)
+    # rel_sims = np.dot(avg_target.T, M_c)
     rel_sims = np.dot(avg_target.T, M_c) / \
                     (np.linalg.norm(avg_target) * np.linalg.norm(M_c, axis=0))
     rel_sims = rel_sims.ravel()
@@ -73,10 +74,10 @@ def relative_cosine_similarities(
     """
     # normalize vecs to norm 1
         # Garg p8: "all vectors are normalized by their l2 norm"
-    M = embed_matrix / np.linalg.norm(embed_matrix, axis=0)
+    # --> NOT DONE (cosine ya normaliza)
     # distancias de avg(target) cra cada context
-    cos_a = cosine_similarities(M, idx_target_a, idx_context)
-    cos_b = cosine_similarities(M, idx_target_b, idx_context)
+    cos_a = cosine_similarities(embed_matrix, idx_target_a, idx_context)
+    cos_b = cosine_similarities(embed_matrix, idx_target_b, idx_context)
     # > 0: mas cerca de A que de B --> bias "hacia" A
     diffs = cos_a - cos_b
     return diffs
