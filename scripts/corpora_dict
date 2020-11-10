@@ -9,4 +9,9 @@ corpora/enwikiselect_undersampled_1.0.txt # ID 6
 corpora/enwikiselect_undersampled_2.0.txt # ID 7
 corpora/enwikiselect_undersampled_4.0.txt # ID 8
 corpora/enwikiselect_newwords.txt # ID 9
+corpora/enwikiselect_oversampled_0.25.txt # ID 10
+corpora/enwikiselect_oversampled_0.5.txt # ID 11
+corpora/enwikiselect_oversampled_1.0.txt # ID 12
+corpora/enwikiselect_oversampled_2.0.txt # ID 13
+corpora/enwikiselect_oversampled_4.0.txt # ID 14
 )

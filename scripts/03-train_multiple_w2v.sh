@@ -14,7 +14,7 @@ for i in $(seq 4 8); do
   VOCABFILE="embeddings/vocab-C$i-V20.txt"
   CORPUSFILE=${CORPORA[$i]}
   # train w2v
-  python3 -u scripts/train_word2vec.py \
+  python3 -u scripts/02-train_word2vec.py \
     --id $i --corpus $CORPUSFILE --vocab $VOCABFILE --outdir $OUTDIR \
     --size $SIZE --window $WINDOW --count $MINCOUNT --sg $SG --seed $SEED
 done

@@ -121,12 +121,12 @@ def make_plots(corpus_n, target_a="HE", target_b="SHE"):
         plt.title(title_name)
         fig_.savefig(path_plots / f'scatter_sw_freq_{result_name}.png', dpi=400)
         # freq-bias all words boxplot
-        fig_, ax_ = boxplots_plt(dat, x_var='freq', y_var=m, bins=[1,2,3,4,5,6,8])
+        fig_, ax_ = boxplots_plt(dat, x_var='freq', y_var=m, bins=[1,2,3,4,5,6,9])
         plt.title(title_name)
         fig_.savefig(path_plots / f'boxplots_freq_{result_name}.png', dpi=400)
 
 
-def save_grid(plt_name, metric_name, corpus_ids):
+def save_grid(plt_name, metric_name, corpus_ids, id):
     """
     Make and save grids of already saved pngs
     """
@@ -143,19 +143,24 @@ def save_grid(plt_name, metric_name, corpus_ids):
         ax.axis('off')
     plt.tight_layout(pad=0, w_pad=0, h_pad=0)
     # save
-    fig_.savefig(path_plots / f"grid_{plt_name}_{metric_name}_HE-SHE.png", dpi=600)
-
+    fig_.savefig(
+        path_plots / f"grid_{plt_name}_{metric_name}_{id}_HE-SHE.png", dpi=600)
 
 
 # RUN
 for i in range(4,9):
     make_plots(corpus_n=i, target_a="HE", target_b="SHE")
 
+for i in range(10, 15):
+    make_plots(corpus_n=i, target_a="HE", target_b="SHE")
+
 
 # Save grids
-ids = [4, 5, 6, 7, 8, 3]
+ids_under = [4, 5, 6, 7, 8, 3]
+ids_over = [10, 11, 12, 13, 14, 3]
 plots = ["boxplots", "scatter", "scatter_smooth", "scatter_sw"]
 metrics = ["cosine_glove", "cosine_w2v"]
 for p in plots:
     for m in metrics:
-        save_grid(p, m, ids)
+        save_grid(p, m, ids_under, "under")
+        save_grid(p, m, ids_over, "over")
