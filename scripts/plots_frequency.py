@@ -19,11 +19,6 @@ file_results = \
 
 dat = pd.read_csv(file_results)
 
-# dat.sort_values('order2').head(20)
-# dat.sort_values('order2', ascending=False).head(20)
-# dat.query("word in ('woman')")
-# dat.query("word in ('girl','woman')")
-
 
 #%% Plots by metric
 
@@ -75,7 +70,7 @@ def boxplots_plt(data, x_var, y_var, bins):
 
 dat_sw = dat.loc[dat['sw'] == 1]
 limits = [1,2,3,4,5,6,8]
-metrics = ['log_oddsratio', 'order2', 'cosine_glove', 'cosine_w2v']
+metrics = ['dppmi', 'order2', 'cosine_glove', 'cosine_w2v']
 for m in metrics:
     result_name = f"{m}-C{CORPUS_ID}_{TARGET_A}-{TARGET_B}"
     # freq-bias all words
@@ -83,7 +78,7 @@ for m in metrics:
     fig_.savefig(f'results/plots/scatter_freq_{result_name}.png', dpi=400)
     # freq-bias sample+smooth
     fig_, ax_ = scatter_plt(
-        dat, x_var='freq', y_var=m, n_sample=20_000, smooth=True)
+        dat, x_var='freq', y_var=m, n_sample=20_000, smooth=True, frac=0.075)
     fig_.savefig(f'results/plots/scatter_smooth_freq_{result_name}.png', dpi=400)
     # freq-bias stopwords+smooth
     fig_, ax_ = scatter_plt(
@@ -104,7 +99,7 @@ def pairs_plt(data, n_sample=None, seed=123):
     """
     if n_sample:
         data = data.sample(n_sample, random_state=seed)
-    features = ['log_oddsratio', 'order2', 'cosine_glove', 'cosine_w2v']
+    features = ['dppmi', 'order2', 'cosine_glove', 'cosine_w2v']
     n_features = len(features)
     fig, axs = plt.subplots(n_features, n_features, figsize=(10,10)
                             ,sharex=False, sharey=False)
@@ -129,8 +124,27 @@ fig_.savefig(f'results/plots/pairs_{result_name}.png', dpi=400)
 
 
 
+### "kspere": por kevin she'kspere briggs!!! jaja
+
+# cols = ['word','freq','count_total','count_context_a','count_context_b'
+#     ,'ppmi_a','ppmi_b', 'dppmi', 'log_oddsratio', 'pvalue']
+# dat[cols].sort_values("dppmi", ascending=True).head()
+
+# dat.loc[np.isclose(dat["dppmi"], 0)][['ppmi_a','ppmi_b','log_oddsratio']]
+# dat['log_oddsratio'].value_counts().head()
+# dat.loc[np.isclose(dat["dppmi"], -1.404883)]
+
+# dat.sort_values('order2').head(20)
+# dat.sort_values('order2', ascending=False).head(20)
+# dat.query("word in ('woman')")
+# dat.query("word in ('girl','woman')")
 
 # cols = ['word','freq','count_total','count_context_a','count_context_b','pmi_a','pmi_b']
 # dat.sort_values("log_oddsratio", ascending=True)[cols].head()
 # words = ['touchdowns', 'batted', 'gln', 'barrichello', 'nfc']
 # dat.loc[dat['word'].isin(words)][cols].head()
+
+# import scipy.sparse
+# M = scipy.sparse.load_npz("embeddings/ppmi-C3-V1-W8-D0.npz")
+# M[1,16]
+# M[1,64]
