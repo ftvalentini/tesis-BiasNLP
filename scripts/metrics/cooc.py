@@ -35,9 +35,9 @@ def pmi(cooc_matrix, words_target, words_context, str2idx, alpha=1.0):
     Pj = Cj / total_count # prob marginal context
     # PMI
     pmi = np.log(Pij / (Pi * Pj))
-    # PPMI
-    ppmi = max(0, pmi)
-    return ppmi
+    # # PPMI
+    # ppmi = max(0, pmi)
+    return pmi
 
 
 def log_oddsratio(counts_a, counts_not_a, counts_b, counts_not_b, ci_level=None):
@@ -54,14 +54,14 @@ def log_oddsratio(counts_a, counts_not_a, counts_b, counts_not_b, ci_level=None)
     return log_odds_ratio
 
 
-def bias_pmi(cooc_matrix, words_target_a, words_target_b, words_context, str2idx,
+def bias_ppmi(cooc_matrix, words_target_a, words_target_b, words_context, str2idx,
             alpha=1.0):
-    """ Return PMI(A,C)-PMI(A,C) between 2 sets of target words (A B) and a \
+    """ Return PPMI(A,C)-PPMI(A,C) between 2 sets of target words (A B) and a \
     set of context words.
     """
     pmi_a = pmi(cooc_matrix, words_target_a, words_context, str2idx, alpha=alpha)
     pmi_b = pmi(cooc_matrix, words_target_b, words_context, str2idx, alpha=alpha)
-    bias = pmi_a - pmi_b
+    bias = max(0,pmi_a) - max(0,pmi_b)
     return bias
 
 
@@ -139,8 +139,8 @@ def dpmi_byword(cooc_matrix, words_target_a, words_target_b, words_context, str2
     probs_context_a = counts_context_a / total_count
     probs_context_b = counts_context_b / total_count
     # PMI
-    ppmi_a = np.maximum(0, np.log(probs_context_a / (prob_a * probs_context)))
-    ppmi_b = np.maximum(0, np.log(probs_context_b / (prob_b * probs_context)))
+    pmi_a = np.log(probs_context_a / (prob_a * probs_context))
+    pmi_b = np.log(probs_context_b / (prob_b * probs_context))
     # insert en DataFrame  segun word index
         # words context siempre sorted segun indice!!!
     print("Putting results in DataFrame...\n")
@@ -149,9 +149,9 @@ def dpmi_byword(cooc_matrix, words_target_a, words_target_b, words_context, str2
     df['count_total'] = counts_context.T
     df['count_context_a'] = counts_context_a.T
     df['count_context_b'] = counts_context_b.T
-    df['ppmi_a'] = ppmi_a.T
-    df['ppmi_b'] = ppmi_b.T
-    df['diff_ppmi'] = df['ppmi_a'] - df['ppmi_b']
+    df['pmi_a'] = pmi_a.T
+    df['pmi_b'] = pmi_b.T
+    df['dppmi'] = np.maximum(0,df['pmi_a']) - np.maximum(0,df['pmi_b'])
     df['count_notcontext_a'] = counts_notcontext_a.T
     df['count_notcontext_b'] = counts_notcontext_b.T
     # add calculo de odds ratio
