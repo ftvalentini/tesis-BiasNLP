@@ -16,13 +16,13 @@ def main(corpus_id, target_a, target_b):
 
     # input files
     raiz = Path("results/csv")
-    file_dpmi =  raiz / f"biasbyword_dpmi-C{corpus_id}_{target_a}-{target_b}.csv"
+    file_dppmi =  raiz / f"biasbyword_dppmi-C{corpus_id}_{target_a}-{target_b}.csv"
     file_order2 = raiz / f"biasbyword_order2-C{corpus_id}_{target_a}-{target_b}.csv"
     file_glove = raiz / f"biasbyword_glove-C{corpus_id}_{target_a}-{target_b}.csv"
     file_w2v = raiz / f"biasbyword_w2v-C{corpus_id}_{target_a}-{target_b}.csv"
 
     # read data
-    df_dpmi = pd.read_csv(file_dpmi)
+    df_dppmi = pd.read_csv(file_dppmi)
     df_order2 = pd.read_csv(file_order2)
     df_glove = pd.read_csv(file_glove)
     df_w2v = pd.read_csv(file_w2v)
@@ -33,23 +33,20 @@ def main(corpus_id, target_a, target_b):
     df_w2v.drop(columns=['freq'], inplace=True)
 
     # merge
-    df_list = [df_dpmi, df_order2, df_glove, df_w2v]
+    df_list = [df_dppmi, df_order2, df_glove, df_w2v]
     df = reduce(
         lambda a,b: pd.merge(a, b, on=['word','idx'], how='inner'), df_list)
 
     # cols to keep
     get_cols = [
         'idx','word','freq'
-        ,'log_oddsratio','order2','cosine_glove','cosine_w2v'
+        ,'dppmi','order2','cosine_glove','cosine_w2v'
         ,'pvalue','count_total','count_context_a','count_context_b'
-        ,'ppmi_a','ppmi_b','lower','upper']
+        ,'pmi_a','pmi_b','log_oddsratio','lower','upper']
     df = df[get_cols]
 
     # oddsratio
     df['oddsratio'] = np.exp(df['log_oddsratio'])
-
-    # dppmi
-    df['dppmi'] = df['ppmi_a'] - df['ppmi_b']
 
     # rankings
     # # abs(log_oddsratio) solo si p-value < 0.01

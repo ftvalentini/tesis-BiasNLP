@@ -13,12 +13,12 @@ from metrics.cooc import dpmi_byword, order2_byword
 WORD_MIN_COUNT = 20
 
 
-def main(vocab_file, cooc_file, ppmi_file, target_a, target_b):
+def main(vocab_file, cooc_file, pmi_file, target_a, target_b):
 
     print("Loading input data...")
     str2idx, idx2str, str2count = load_vocab(vocab_file)
     cooc_matrix = scipy.sparse.load_npz(cooc_file)
-    ppmi_matrix = scipy.sparse.load_npz(ppmi_file)
+    pmi_matrix = scipy.sparse.load_npz(pmi_file)
 
     print("Getting words lists...")
     words_lists = dict()
@@ -34,16 +34,16 @@ def main(vocab_file, cooc_file, ppmi_file, target_a, target_b):
     res_dpmi = dpmi_byword(
                         cooc_matrix, words_a, words_b, words_context, str2idx)
     del cooc_matrix
-    
-    print("Saving DPMI results in csv...")
+
+    print("Saving DPPMI results in csv...")
     results_name = re.search("^.+/cooc-(C\d+)-.+$", cooc_file).group(1)
     outfile = \
-        f'results/csv/biasbyword_dpmi-{results_name}_{target_a}-{target_b}.csv'
+        f'results/csv/biasbyword_dppmi-{results_name}_{target_a}-{target_b}.csv'
     res_dpmi.to_csv(outfile, index=False)
 
     print("Computing order2 bias wrt each context word...")
     res_order2 = order2_byword(
-            ppmi_matrix, words_a, words_b, words_context, str2idx, n_dim=50_000)
+            pmi_matrix, words_a, words_b, words_context, str2idx, n_dim=50_000)
 
     print("Saving order2 results in csv...")
     outfile = \
@@ -57,12 +57,12 @@ if __name__ == "__main__":
     required = parser.add_argument_group('required named arguments')
     required.add_argument('--vocab', type=str, required=True)
     required.add_argument('--cooc', type=str, required=True)
-    required.add_argument('--ppmi', type=str, required=True)
+    required.add_argument('--pmi', type=str, required=True)
     required.add_argument('--a', type=str, required=True)
     required.add_argument('--b', type=str, required=True)
 
     args = parser.parse_args()
 
     print("START -- ", datetime.datetime.now())
-    main(args.vocab, args.cooc, args.ppmi, args.a, args.b)
+    main(args.vocab, args.cooc, args.pmi, args.a, args.b)
     print("END -- ", datetime.datetime.now())
