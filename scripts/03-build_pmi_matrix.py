@@ -18,7 +18,7 @@ def build_pmi_matrix(M):
         - words a,b con cooc(a,b)=0 reciben pmi(a,b)=0
     """
     nrows, ncols = M.shape
-    D = M.count_nonzero()
+    D = M.sum()
     colSums = M.sum(axis=0).ravel()
     rowSums = M.sum(axis=1).ravel()
     colDivs = 1.0 / np.array(colSums)[0]
