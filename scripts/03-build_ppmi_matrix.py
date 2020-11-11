@@ -8,12 +8,14 @@ import argparse
 import scipy.sparse
 
 
-def build_ppmi_matrix(M):
+def build_pmi_matrix(M):
     """
-    Build PPMI matrix using cooc. matrix
+    Build PMI matrix using cooc. matrix
     Param:
         - M: scipy.sparse cooc. matrix
-    (ver https://www.aclweb.org/anthology/Q15-1016.pdf seccion 2.1)
+    Notes:
+        - ver https://www.aclweb.org/anthology/Q15-1016.pdf seccion 2.1
+        - words a,b con cooc(a,b)=0 reciben pmi(a,b)=0
     """
     nrows, ncols = M.shape
     D = M.count_nonzero()
@@ -21,11 +23,11 @@ def build_ppmi_matrix(M):
     rowSums = M.sum(axis=1).ravel()
     colDivs = 1.0 / np.array(colSums)[0]
     rowDivs = 1.0 / np.array(rowSums)[0]
-    M_ppmi = M * D
-    M_ppmi = M_ppmi.dot(scipy.sparse.diags(colDivs))
-    M_ppmi = scipy.sparse.diags(rowDivs).dot(M_ppmi)
-    M_ppmi.data = np.log(M_ppmi.data)
-    return M_ppmi
+    M_pmi = M * D
+    M_pmi = M_pmi.dot(scipy.sparse.diags(colDivs))
+    M_pmi = scipy.sparse.diags(rowDivs).dot(M_pmi)
+    M_pmi.data = np.log(M_pmi.data)
+    return M_pmi
 
 
 if __name__ == "__main__":
@@ -40,8 +42,8 @@ if __name__ == "__main__":
     print("START -- ", datetime.datetime.now())
     print("Loading cooc. matrix...")
     M = scipy.sparse.load_npz(args.matrix)
-    print("Computing PPMI matrix...")
-    mat = build_ppmi_matrix(M)
-    print("Saving PPMI matrix...")
+    print("Computing PMI matrix...")
+    mat = build_pmi_matrix(M)
+    print("Saving PMI matrix...")
     scipy.sparse.save_npz(args.outfile, mat)
     print("END -- ", datetime.datetime.now())
