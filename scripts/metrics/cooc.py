@@ -169,12 +169,13 @@ def dpmi_byword(cooc_matrix, words_target_a, words_target_b, words_context, str2
     return result
 
 
-def cosine_similarities(M, idx_target, idx_context):
+def cosine_similarities(M, idx_target, idx_context, use_norm=True):
     """Return relative cosin similarity values between avg of words_target and
     words_context
     Param:
         - M: (V+1)x(V+1) matrix where row/column indices are indices of
         words given by str2idx (it can be cooc. matrix or PPMI matrix)
+        - use_norm: divides by norm (as usual cosine) -- if False: only dot pr.
     Notes:
         - Rows of M are treated as word vectors
         - Must pass words indices (not words)
@@ -189,36 +190,43 @@ def cosine_similarities(M, idx_target, idx_context):
                                         scipy.sparse.linalg.norm(M_c, axis=1)
     # denominadores = scipy.sparse.linalg.norm(M_c, axis=1)
     # denominadores *= np.linalg.norm(avg_target)
-    rel_sims = productos.ravel() / denominadores.ravel()
+    rel_sims = productos.ravel()
+    if use_norm:
+        rel_sims /= denominadores.ravel()
     out = np.array(rel_sims).ravel()
     return out
 
 
-def relative_cosine_diffs(M, idx_target_a, idx_target_b, idx_context):
+def relative_cosine_diffs(
+    M, idx_target_a, idx_target_b, idx_context, use_norm=True, return_both=False):
     """Return relative cosine difference between A/B wrt to each Context
     Param:
         - M: (V+1)x(V+1) matrix where row/column indices are indices of
         words (it can be cooc matrix or PPMI matrix)
+        - return_both: returns tuple (cos(a,c), cos(b,c))
+        - use_norm: divides by norm (as usual cosine) -- if False: only dot pr.
     Notes:
         - Rows of M are treated as word vectors
         - Must pass words indices (not words)
     """
     # distancias de avg(target) cra cada context
-    cos_a = cosine_similarities(M, idx_target_a, idx_context)
-    cos_b = cosine_similarities(M, idx_target_b, idx_context)
+    cos_a = cosine_similarities(M, idx_target_a, idx_context, use_norm=use_norm)
+    cos_b = cosine_similarities(M, idx_target_b, idx_context, use_norm=use_norm)
     # > 0: mas cerca de A que de B --> bias "hacia" A
+    if return_both:
+        return cos_a, cos_b
     diffs = cos_a - cos_b
     return diffs
 
 
 def order2_byword(M, words_target_a, words_target_b, words_context, str2idx
-                  ,n_dim=None):
+                  ,n_dim=None, only_positive=True):
     """
     Return DataFrame with
         - 2nd order coocurrence bias A/B of each Context word
         - freq of each word
     Param:
-        - M: scipy.sparse matrix (Cooc. or PPMI matrix)
+        - M: scipy.sparse matrix (Cooc. or PMI matrix)
         - n_dim: use first n_dim of each row if not None
     """
     # handling words out of vocab (asume que todas las context estan en vocab)
@@ -236,12 +244,23 @@ def order2_byword(M, words_target_a, words_target_b, words_context, str2idx
     idx_c = sorted([str2idx[w] for w in words_context])
     # get bias for each c
     if n_dim:
-        M = M[:,:n_dim+2] # +1: idx=0 esta vacio / +1: py excluye upper lim
-    diffs_cosine = relative_cosine_diffs(M, idx_a, idx_b, idx_c)
+        M = M[:,:n_dim+1] # +1 porque idx=0 esta vacio
+    # max(celda, 0) para usar PPMI -- si se usa cooc no pasa nada
+    if only_positive:
+        M = M.maximum(0)
+    dots_a, dots_b = relative_cosine_diffs(
+                    M, idx_a, idx_b, idx_c, use_norm=False, return_both=True)
+    cosines_a, cosines_b = relative_cosine_diffs(
+                    M, idx_a, idx_b, idx_c, use_norm=True, return_both=True)
     # results DataFrame (todos los resultados sorted by idx)
     str2idx_context = {w: str2idx[w] for w in words_context}
     results = pd.DataFrame(str2idx_context.items(), columns=['word','idx'])
-    results['order2'] = diffs_cosine
+    results['cosines_a'] = cosines_a
+    results['cosines_b'] = cosines_b
+    results['dots_a'] = dots_a
+    results['dots_b'] = dots_b
+    results['order2'] = cosines_a - cosines_b
+    results['order2_dot'] = dots_a - dots_b
     return results
 
 

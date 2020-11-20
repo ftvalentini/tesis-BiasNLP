@@ -42,7 +42,8 @@ def main(corpus_id, target_a, target_b):
         'idx','word','freq'
         ,'dppmi','order2','cosine_glove','cosine_w2v'
         ,'pvalue','count_total','count_context_a','count_context_b'
-        ,'pmi_a','pmi_b','log_oddsratio','lower','upper']
+        ,'pmi_a','pmi_b','log_oddsratio','lower','upper'
+        ,'cosines_a', 'cosines_b', 'dots_a', 'dots_b', 'order2_dot']
     df = df[get_cols]
 
     # oddsratio

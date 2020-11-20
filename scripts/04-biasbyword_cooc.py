@@ -42,8 +42,10 @@ def main(vocab_file, cooc_file, pmi_file, target_a, target_b):
     res_dpmi.to_csv(outfile, index=False)
 
     print("Computing order2 bias wrt each context word...")
+    n_dim = len(words_a) + len(words_b) + len(words_context)
     res_order2 = order2_byword(
-            pmi_matrix, words_a, words_b, words_context, str2idx, n_dim=50_000)
+            pmi_matrix, words_a, words_b, words_context, str2idx
+            , n_dim=n_dim, only_positive=True)
 
     print("Saving order2 results in csv...")
     outfile = \
