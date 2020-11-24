@@ -21,12 +21,13 @@ def norm_distances(embed_matrix, idx_target, idx_context):
     return normdiffs
 
 
-def cosine_similarities(embed_matrix, idx_target, idx_context):
+def cosine_similarities(embed_matrix, idx_target, idx_context, use_norm=True):
     """Return relative cosin similarity values between avg of words_target and
     words_context
     Param:
         - embed_matrix: d x V matrix where column indices are indices of words
         given by str2idx
+        - use_norm: divides by norm (as usual cosine) -- if False: only dot pr.
     Notes:
         - Must pass words indices (not words)
         - It works OK if len(idx_target) == 1
@@ -37,10 +38,13 @@ def cosine_similarities(embed_matrix, idx_target, idx_context):
     # similitud coseno (dot product)
     # (context van a estar normalizados -- targets se "desnormalizan" al promediar)
     # rel_sims = np.dot(avg_target.T, M_c)
-    rel_sims = np.dot(avg_target.T, M_c) / \
-                    (np.linalg.norm(avg_target) * np.linalg.norm(M_c, axis=0))
-    rel_sims = rel_sims.ravel()
-    return rel_sims
+    productos = np.dot(avg_target.T, M_c)
+    normas = np.linalg.norm(M_c, axis=0)
+    denominadores = np.linalg.norm(avg_target) * normas
+    out = productos.ravel()
+    if use_norm:
+        out /= denominadores.ravel()
+    return out
 
 
 def relative_norm_distances(
@@ -63,12 +67,15 @@ def relative_norm_distances(
     return diffs
 
 
-def relative_cosine_similarities(
-                        embed_matrix, idx_target_a, idx_target_b, idx_context):
+def relative_cosine_diffs(
+    embed_matrix, idx_target_a, idx_target_b, idx_context, use_norm=True
+    , return_both=False):
     """Return relative norm distances between A/B wrt to each Context
     (Garg et al 2018 Eq 3)
     Param:
         - embed_matrix: d x V matrix where column indices are indices of words
+        - return_both: returns tuple (cos(a,c), cos(b,c))
+        - use_norm: divides by norm (as usual cosine) -- if False: only dot pr.
     Notes:
         - Must pass words indices (not words)
     """
@@ -76,9 +83,13 @@ def relative_cosine_similarities(
         # Garg p8: "all vectors are normalized by their l2 norm"
     # --> NOT DONE (cosine ya normaliza)
     # distancias de avg(target) cra cada context
-    cos_a = cosine_similarities(embed_matrix, idx_target_a, idx_context)
-    cos_b = cosine_similarities(embed_matrix, idx_target_b, idx_context)
+    cos_a = cosine_similarities(
+                    embed_matrix, idx_target_a, idx_context, use_norm=use_norm)
+    cos_b = cosine_similarities(
+                    embed_matrix, idx_target_b, idx_context, use_norm=use_norm)
     # > 0: mas cerca de A que de B --> bias "hacia" A
+    if return_both:
+        return cos_a, cos_b
     diffs = cos_a - cos_b
     return diffs
 
@@ -149,12 +160,24 @@ def bias_byword(embed_matrix, words_target_a, words_target_b, words_context
     idx_c = sorted([str2idx[w] for w in words_context])
     # get differences for each c
     diffs_norm2 = relative_norm_distances(embed_matrix, idx_a, idx_b, idx_c)
-    diffs_cosine = relative_cosine_similarities(embed_matrix, idx_a, idx_b, idx_c)
+    dots_a, dots_b = relative_cosine_diffs(
+            embed_matrix, idx_a, idx_b, idx_c, use_norm=False, return_both=True)
+    cosines_a, cosines_b = relative_cosine_diffs(
+            embed_matrix, idx_a, idx_b, idx_c, use_norm=True, return_both=True)
+    # normas
+    M_c = embed_matrix[:,idx_c]
+    normas = np.linalg.norm(M_c, axis=0)
     # results DataFrame (todos los resultados sorted by idx)
     str2idx_context = {w: str2idx[w] for w in words_context}
     str2count_context = {w: str2count[w] for w in str2idx_context}
     results = pd.DataFrame(str2idx_context.items(), columns=['word','idx'])
     results['rel_norm_distance'] = diffs_norm2
-    results['rel_cosine_similarity'] = diffs_cosine
     results['freq'] = str2count_context.values()
+    results['cosine_a'] = cosines_a
+    results['cosine_b'] = cosines_b
+    results['dot_a'] = dots_a
+    results['dot_b'] = dots_b
+    results['diff_cosine'] = cosines_a - cosines_b
+    results['diff_dot'] = dots_a - dots_b
+    results['norm'] = normas
     return results

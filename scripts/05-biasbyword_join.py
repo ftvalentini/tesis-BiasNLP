@@ -28,8 +28,12 @@ def main(corpus_id, target_a, target_b):
     df_w2v = pd.read_csv(file_w2v)
 
     # rename/drop columns
-    df_glove.rename(columns={"rel_cosine_similarity": "cosine_glove"}, inplace=True)
-    df_w2v.rename(columns={"rel_cosine_similarity": "cosine_w2v"}, inplace=True)
+    we_cols = \
+        ['cosine_a','cosine_b','dot_a','dot_b','diff_cosine','diff_dot','norm']
+    df_glove.rename(columns={col: col+"_glove" for col in we_cols}, inplace=True)
+    df_w2v.rename(columns={col: col+"_w2v" for col in we_cols}, inplace=True)
+    df_order2.rename(columns={col: col+"_ppmi" for col in we_cols}, inplace=True)
+    df_order2.rename(columns={"nnz": "nnz_ppmi"}, inplace=True)
     df_w2v.drop(columns=['freq'], inplace=True)
 
     # merge
@@ -38,12 +42,17 @@ def main(corpus_id, target_a, target_b):
         lambda a,b: pd.merge(a, b, on=['word','idx'], how='inner'), df_list)
 
     # cols to keep
+    ppmi_cols = [c+"_ppmi" for c in we_cols]
+    w2v_cols = [c+"_w2v" for c in we_cols]
+    glove_cols = [c+"_glove" for c in we_cols]
     get_cols = [
         'idx','word','freq'
-        ,'dppmi','order2','cosine_glove','cosine_w2v'
-        ,'pvalue','count_total','count_context_a','count_context_b'
+        ,'dppmi','pvalue','count_total','count_context_a','count_context_b'
         ,'pmi_a','pmi_b','log_oddsratio','lower','upper'
-        ,'cosines_a', 'cosines_b', 'dots_a', 'dots_b', 'order2_dot']
+        ,'nnz_ppmi']
+    get_cols += ppmi_cols
+    get_cols += w2v_cols
+    get_cols += glove_cols
     df = df[get_cols]
 
     # oddsratio
@@ -55,18 +64,17 @@ def main(corpus_id, target_a, target_b):
     # rank_lor_abs = stats.rankdata(lor_abs, "average")/len(lor_abs)
     # df.loc[df['pvalue'] < 0.01, 'rank_lor_abs'] = rank_lor_abs
     # df.loc[df['pvalue'] >= 0.01, 'rank_lor_abs'] = 0.0
-    # abs(dppmi)
-    dppmi_abs = df['dppmi'].abs()
-    df['rank_dppmi_abs'] = stats.rankdata(dppmi_abs, "average")/len(dppmi_abs)
-    # order2
-    order2_abs = df['order2'].abs()
-    df['rank_order2_abs'] = stats.rankdata(order2_abs, "average")/len(order2_abs)
-    # glove
-    glove_abs = df['cosine_glove'].abs()
-    df['rank_glove_abs'] = stats.rankdata(glove_abs, "average")/len(glove_abs)
-    # w2v
-    w2v_abs = df['cosine_w2v'].abs()
-    df['rank_w2v_abs'] = stats.rankdata(w2v_abs, "average")/len(w2v_abs)
+    def add_ranking_col(df, colname):
+        """Add column with 'rank_' prefix with the rank of the absolute value"""
+        col_abs = df[colname].abs()
+        newname = 'rank_'+colname+'_abs'
+        df[newname] = stats.rankdata(col_abs, "average")/len(col_abs)
+        return df
+
+    df = add_ranking_col(df, "dppmi")
+    df = add_ranking_col(df, "diff_cosine_ppmi")
+    df = add_ranking_col(df, "diff_cosine_w2v")
+    df = add_ranking_col(df, "diff_cosine_glove")
 
     # SW indicator
     words_rm = [

@@ -248,19 +248,27 @@ def order2_byword(M, words_target_a, words_target_b, words_context, str2idx
     # max(celda, 0) para usar PPMI -- si se usa cooc no pasa nada
     if only_positive:
         M = M.maximum(0)
+    # cosine biases
     dots_a, dots_b = relative_cosine_diffs(
                     M, idx_a, idx_b, idx_c, use_norm=False, return_both=True)
     cosines_a, cosines_b = relative_cosine_diffs(
                     M, idx_a, idx_b, idx_c, use_norm=True, return_both=True)
+    # normas y NZ cells
+    M_c = M[idx_c,:]
+    del M
+    normas = scipy.sparse.linalg.norm(M_c, axis=1)
+    nnz = (M_c > 0).sum(1).A1 # contar NZ de cada palabra
     # results DataFrame (todos los resultados sorted by idx)
     str2idx_context = {w: str2idx[w] for w in words_context}
     results = pd.DataFrame(str2idx_context.items(), columns=['word','idx'])
-    results['cosines_a'] = cosines_a
-    results['cosines_b'] = cosines_b
-    results['dots_a'] = dots_a
-    results['dots_b'] = dots_b
-    results['order2'] = cosines_a - cosines_b
-    results['order2_dot'] = dots_a - dots_b
+    results['cosine_a'] = cosines_a
+    results['cosine_b'] = cosines_b
+    results['dot_a'] = dots_a
+    results['dot_b'] = dots_b
+    results['diff_cosine'] = cosines_a - cosines_b
+    results['diff_dot'] = dots_a - dots_b
+    results['norm'] = normas
+    results['nnz'] = nnz
     return results
 
 
