@@ -42,14 +42,15 @@ def create_df(file_glove, file_w2v):
 # dat = create_df(file_glove, file_w2v)
 # dat.query("word in ('he','she','t1','t2','c1','c2','c3','c4','c5','c6')")
 
-str2idx, idx2str, str2count = load_vocab("../embeddings/vocab-C9-V20.txt")
+# str2idx, idx2str, str2count = load_vocab("../embeddings/vocab-C9-V20.txt")
+#
+# tmp = {k:v for k,v in str2count.items() if k in
+#                             ('he','she','t1','t2','c1','c2','c3','c4','c5','c6')}
+# pd.DataFrame({'word': list(tmp.keys()), 'freq': list(tmp.values())})
 
-tmp = {k:v for k,v in str2count.items() if k in
-                            ('he','she','t1','t2','c1','c2','c3','c4','c5','c6')}
-pd.DataFrame({'word': list(tmp.keys()), 'freq': list(tmp.values())})
 
-
-def scatter_plt(data, x_var, y_var, n_sample=None, smooth=False, frac=0.1, seed=123):
+def scatter_plt(
+    data, x_var, y_var, n_sample=None, smooth=False, frac=0.1, seed=123, x_log=True):
     """
     Scatter plot (x with log10)
     Param:
@@ -62,8 +63,9 @@ def scatter_plt(data, x_var, y_var, n_sample=None, smooth=False, frac=0.1, seed=
     data_sw = data[data['new_word'] == 1]
     data_resto = data[data['new_word'] == 0]
     fig, ax = plt.subplots()
-    ax.set_xscale('log')
-    ax.set_xlim(left=10, right=10**8)
+    if x_log:
+        ax.set_xscale('log')
+        ax.set_xlim(left=10, right=10**8)
     plt.scatter(x_var, y_var, linewidth=0, c='darkolivegreen', s=4, data=data_resto)
     plt.scatter(x_var, y_var, linewidth=0, c='firebrick', s=30, data=data_sw)
     if smooth:
@@ -149,3 +151,45 @@ def make_pairs_plt(target_a="HE", target_b="SHE", n_sample=None, seed=123):
 
 
 fig_, axs_ = make_pairs_plt(target_a="HE", target_b="SHE", n_sample=20_000)
+
+
+def make_scatter_targets(model):
+    """
+    Make scatter bias he/she vs. bias t1/t2
+    """
+    # input files
+    path_vocab = Path("../embeddings")
+    path_csv = Path("../results/csv")
+    path_plots = Path("../results/plots")
+    file_heshe = path_csv / f"biasbyword_{model}-C9_HE-SHE.csv"
+    file_t1t2 = path_csv / f"biasbyword_{model}-C9_T1-T2.csv"
+    vocab_file = path_vocab / f"vocab-C9-V20.txt"
+    # read data and vocab
+    dat_heshe = pd.read_csv(file_heshe)
+    dat_t1t2 = pd.read_csv(file_t1t2)
+    dat_heshe.rename(
+        columns={"rel_cosine_similarity": "cosine_"+model+"_HeShe"}, inplace=True)
+    dat_t1t2.rename(
+        columns={"rel_cosine_similarity": "cosine_"+model+"_T1T2"}, inplace=True)
+    # merge
+    df = pd.merge(dat_heshe, dat_t1t2, on=['word','idx'], how='inner')
+    # newwords indicator
+    new_words = ['c'+str(i) for i in range(1,7)]
+    df['new_word'] = np.where(df['word'].isin(new_words), 1, 0)
+    # make plot and save
+    result_name = f"scatter-C9_{model}_HE-SHE_T1-T2"
+    # freq-bias all words
+    spearman = df[["cosine_"+model+"_HeShe", "cosine_"+model+"_T1T2"]].\
+            corr("spearman").iloc[0,1]
+    fig, ax = scatter_plt(
+        df, x_var="cosine_"+model+"_HeShe", y_var="cosine_"+model+"_T1T2"
+        ,x_log=False)
+    title_name = f"Spearman = {spearman:.3f}"
+    plt.title(title_name)
+    fig.savefig(path_plots / f'scatter_freq_{result_name}.png', dpi=400)
+
+
+
+
+make_scatter_targets("w2v")
+make_scatter_targets("glove")
