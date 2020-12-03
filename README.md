@@ -180,30 +180,54 @@ TARGETB="SHE"
 python -u scripts/05-biasbyword_join.py --corpus $ID --a $TARGETA --b $TARGETB
 ```
 
+### Insertion of random ficticious words
 
-<!-- DEJE ACA -->
+In order to assess the influence of word frequency on word embedding bias, we insert new words randomly on the original corpus. We add 6 different context words with frequencies of varying orders of magnitude, and 2 target words with frequencies similar to those of "he" and "she". We run this five times with different random seeds, so that as a result we get five different corpora with words inserted randomly.
 
-<!-- PRIMERO PONER:
-- test de new words
+#### Create new corpora
 
-creacion de corpus
-Hardcode lists of target words to use inside `scripts/insert_new_words.py`
+**1.** Hardcode the name of the lists of the target words in `scripts/insert_new_words.py`.
+
+**2.** Hardcode the name of the input corpus file, the name of the vocabulary file and the list of random seeds in `scripts/insert_newwords_multiple.sh`.
+
+New corpora are saved with the format `corpora/<name>_newwords_S<seed>.txt`.
 
 Example:
 ```
 rm nohup.out
-CORPUSFILE="corpora/enwikiselect.txt"
-VOCABFILE="embeddings/vocab-C3-V20.txt"
-for i in 93 94 95 96 97; do
-  SEED=$i
-  OUTFILE="corpora/enwikiselect_newwords_S$SEED.txt"
-  nohup python3 -u scripts/insert_new_words.py \
-    $CORPUSFILE $VOCABFILE $OUTFILE $SEED
-done
+chmod +x scripts/insert_newwords_multiple.sh
+nohup bash scripts/insert_newwords_multiple.sh &
 ```
 
-DESPUES: agregar corrida de multiple glove / multiple w2v para esto
-DESPUES: armar scripts para multiple DPPMI, PPMI_vec con esto -->
+#### Train multiple embeddings
+
+Train GloVe and word2vec once for each of the five perturbed corpora. GloVe must be trained first because its vocabulary is used in a check when running word2vec.
+
+**1.** Write the names of the perturbed copora in `corpora_dict`.
+
+**2.** Hardcode the IDs of the perturbed copora (order in `corpora_dict`) in `scripts/train_multiple_glove.sh` and `scripts/train_multiple_w2v.sh`.
+
+**3.** Train GloVe with the same set-up (`scripts/glove.config` file) used in [GloVe](#glove).
+
+Example:
+```
+rm nohup.out
+chmod +x scripts/train_multiple_glove.sh
+nohup scripts/train_multiple_glove.sh &
+```
+
+**4.** Hardcode the configuration of word2vec in `scripts/train_multiple_w2v.sh` -- use the same configuration used in [Word2Vec](#word2vec).
+
+Example:
+```
+rm nohup.out
+chmod +x scripts/train_multiple_w2v.sh
+nohup bash scripts/train_multiple_w2v.sh &
+```
+
+<!-- DESPUES: armar scripts para multiple DPPMI, PPMI_vec con esto -->
+
+
 
 <!-- SEGUNDO PONER:
 - test undersampled/oversampled_corpora
