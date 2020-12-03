@@ -1,7 +1,7 @@
 
 ## Measuring stereotypes in corpora
 
-A comparison between co-coocurrence-based metrics and embedding-based metrics.
+A comparison between co-cooccurrence-based metrics and embedding-based metrics.
 
 ### Corpus setup
 
@@ -17,38 +17,51 @@ Follow these steps to create the data needed to run tests. Code was tested with:
 
 ### GloVe
 
-**(0)** Build GloVe from source only once so that it can be executed\
-`make -C "GloVe"` (in Windows)\
-`cd GloVe && make` (in Linux)
+The steps to create a GloVe word embeddings numpy array from the Wikipedia corpus are:
 
-**(1)** Train GloVe
-`scripts/01-embed.sh scripts/glove.config`\
-* trains word embeddings and saves them in `.bin`
-* set `DISTANCE_WEIGHTING=1` in `glove.config` so that co-ocurrence counts are normalized as done in vanilla GloVe
-* set `VOCAB_MIN_COUNT=20` so that words are counted as in vanilla GloVe (words with frequency less than 20 are removed and not considered when building windows of `WINDOW_SIZE`)
-* `CORPUS_ID` is defined according to order in `CORPORA` list in `scripts/01-embed.sh`
+**0.** Build GloVe from source only once so that it can be executed\
 
-**(2)** Extract GloVe word vectors matrix\
-`python scripts/02-build_glove_matrix.py <vocab_file.txt> <embed_file.bin> <out_file.npy>`
-* Reads `.bin` and saves all vectors (word vectors, context vectors and both biases) as a tuple in a `.npy` file
+In Windows:
+```
+make -C "GloVe"
+```
+
+In Linux:
+```
+cd GloVe && make
+```
+
+**1.** Train word embeddings and save them as `.bin`
+
+* set `DISTANCE_WEIGHTING=1` in `glove.config` so that co-occurrence counts are normalized as done in vanilla GloVe
+* set `VOCAB_MIN_COUNT=20` so that words are counted as in vanilla GloVe (words with frequency less than 20 are removed _before_ windows of `WINDOW_SIZE`)
+* `CORPUS_ID` is defined according to order in `CORPORA` list in `scripts/corpora_dict`
+
+```
+chmod +x scripts/01-glove.sh
+nohup scripts/01-glove.sh scripts/glove.config &
+```
+
+**2.** Extract word vectors matrices
+
+Read GloVe `.bin` and saves all vectors (target vectors, context vectors and both biases) as a tuple in a `glove_matrices-<>.pkl` file. Besides, save a `glove-<...>.npy` with an array containing a vector for each word, such that each vector is the sum of the word's target and context vectors.
 
 Example:
 ```
-cd tesis-BiasNLP
 VOCABFILE="embeddings/vocab-C3-V20.txt"
-EMBEDFILE="embeddings/vectors-C3-V20-W8-D1-D100-R0.05-E150-S1.bin"
-OUTFILE="embeddings/glove-C3-V20-W8-D1-D100-R0.05-E150-S1.npy"
-python3 scripts/02-build_embeddings_matrix.py -v $VOCABFILE -e $EMBEDFILE -o $OUTFILE
+BINFILE="embeddings/vectors-C3-V20-W5-D1-D100-R0.05-E50-S1.bin"
+MATFILE="embeddings/full_vectors-C3-V20-W5-D1-D100-R0.05-E50-S1.pkl"
+EMBEDFILE="embeddings/glove-C3-V20-W5-D1-D100-R0.05-E50-S1.npy"
+python3 -u scripts/02-build_glove_matrices.py $VOCABFILE $BINFILE $MATFILE $EMBEDFILE
 ```
 
 ### Word2Vec
 
-Train word embeddings with Skip-Gram or CBOW using `gensim` with parameters similar to the ones used for GloVe.
+In order to train word embeddings with SGNS or CBOW using python `gensim` with parameters similar to the ones used for GloVe:
 
-**(1)** Train Word2Vec\
-`python -u scripts/train_word2vec.py <required_params>`
-* Saves `.model` with trained model and `.npy` with embeddings in array format.
-* If model is large, files with extension `.trainables.syn1neg.npy` and `.wv.vectors.npy` might be saved alongside `.model`.
+**1.** Save `.model` with trained model and `.npy` with embeddings in array format
+
+If model is large, files with extension `.trainables.syn1neg.npy` and `.wv.vectors.npy` might be saved alongside `.model`.
 
 Example:
 ```
@@ -58,90 +71,183 @@ CORPUSFILE="corpora/enwikiselect.txt"
 OUTDIR="E:\\tesis-BiasNLP"
 SG=1 # 0:cbow, 1:sgns
 SIZE=100
-WINDOW=8
+WINDOW=5
 MINCOUNT=20
 SEED=1
-python -u scripts/train_word2vec.py \
+python -u scripts/02-train_word2vec.py \
   --id $CORPUSID --corpus $CORPUSFILE --vocab $VOCABFILE --outdir $OUTDIR \
   --size $SIZE --window $WINDOW --count $MINCOUNT --sg $SG --seed $SEED
 ```
 
-### Co-ocurrence matrix
+### Co-occurrence and PMI matrices
 
-**(1)** Build raw co-ocurrence matrix and vocabulary\
-`scripts/01-cooc.sh scripts/cooc.config <corpus_dir> <results_dir>`
-* builds `.bin` with coocurrence counts and `.txt` with vocabulary
-* must specify `DISTANCE_WEIGHTING=0` in `cooc.config` so that co-ocurrence counts are raw (not weighted by distance to center)
-* if `VOCAB_MIN_COUNT=1` then all words are part of window.
-* `CORPUS_ID` is defined according to order in `CORPORA` list in `scripts/01-cooc.sh`
+Follow these steps to create co-occurrence and PMI (Point Mutual Information) sparse matrices from the output of GloVe:
 
-**(2)** Build scipy.sparse co-ocurrence matrix\
-`python scripts/02-build_cooc_matrix.py <vocab_file.txt> <cooc_file.bin> <out_file.npz>`
-* builds a `scipy.sparse.csr_matrix` with co-occurrences stored in `.bin` file
-* matrix is saved as `.npz` file
+**1.** Build a `.bin` with cooccurrence counts and `.txt` with vocabulary
+
+* must specify `DISTANCE_WEIGHTING=0` in `cooc.config` so that co-occurrence counts are raw (not weighted by distance to center)
+* if `VOCAB_MIN_COUNT=1` then all words are kept when computing co-occurrences -- otherwise use the same `VOCAB_MIN_COUNT` as in GloVe or word2vec
+* `CORPUS_ID` is defined according to order in `CORPORA` list in `scripts/corpora_dict`
+
+```
+chmod +x scripts/01-cooc.sh
+nohup scripts/01-cooc.sh scripts/cooc.config &
+```
+
+**2.** Save scipy.sparse co-occurrence matrix as `.npz` file
+
+Co-occurrences stored in `.bin` file are used as input
 
 Example:
 ```
-cd tesis-BiasNLP
-VOCABFILE="embeddings/vocab-C3-V1.txt"
-COOCFILE="embeddings/cooc-C3-V1-W8-D0.bin"
-OUTFILE="embeddings/cooc-C3-V1-W8-D0.npz"
-nohup python3 scripts/02-build_cooc_matrix.py -v $VOCABFILE -c $COOCFILE -o $OUTFILE 1>test.out 2>test.err &
-tail -f test.err
+rm nohup.out
+VOCABFILE="embeddings/vocab-C3-V20.txt"
+COOCFILE="embeddings/cooc-C3-V20-W5-D0.bin"
+OUTFILE="embeddings/cooc-C3-V20-W5-D0.npz"
+nohup python3 -u scripts/02-build_cooc_matrix.py \
+  -v $VOCABFILE -c $COOCFILE -o $OUTFILE &
 ```
 
-### Relative norm distance (RND) bias
+**3.** Save scipy.sparse PMI matrix as `.npz` file
 
-Get the value of RND bias in corpus for given sets of target and context words (for example, `MALE`, `FEMALE` and `SCIENCE`)
+The input is the `.npz` co-occurrence matrix
 
-**(1)** Set parameters in `test_rnd.py`
-* `TARGET_A`,`TARGET_B`,`CONTEXT` are names of word lists in `words_lists/`
+Example:
+```
+rm nohup.out
+MATRIX="embeddings/cooc-C3-V20-W5-D0.npz"
+OUTFILE="embeddings/pmi-C3-V20-W5-D0.npz"
+nohup python3 -u scripts/03-build_pmi_matrix.py \
+  --matrix $MATRIX --outfile $OUTFILE &
+```
 
-**(2)** Get value of relative norm distance\
-`python test_rnd.py`
-* Results are saved as `.md` in `results/`
+### Bias by word
 
-### RND and relative cosine similarity (RCS) by word
+Get the value of bias of each word (w) in the vocabulary with respect to given sets of target words (a & b). Bias for each word w is measured in four ways:
 
-Get the RND and RCS bias of each word in vocabulary with respect to a given set of target groups (for example, `MALE` and `FEMALE`) and a set of trained vectors.
+* DPPMI bias (Difference of Positive Mointwise Mutual Information): PPMI(w,a) - PPMI(w,b)
+* PPMI_vec bias (difference of cosines of DPPMI vectors): cosine(w,a) - cosine(w,b)
+* word2vec bias (difference of cosines of SGNS vectors): cosine(w,a) - cosine(w,b)
+* GloVe bias (difference of cosines of GloVe vectors): cosine(w,a) - cosine(w,b)
 
-**(1)** Set parameters in `test_distbyword.py`
-* `TARGET_A`,`TARGET_B` are names of target word lists in `words_lists/`
+Additionally, other quantities are measured and saved, such as the norm of each word's vector, the approximation of PMI by log odds-ratio, etc.
 
-**(2)** Get value of relative norm distance for each word with respect to the two groups of target words\
-`python test_distbyword.py <vocab_file> <embed_file>`
-* Results are saved as `.md` and `.csv` in `results/`
+The lists of target words to be used must be saved in `words_lists/`.
+
+#### Co-occurrence based biases
+
+Compute DPPMI and PPMI_vec biases of each word in vocabulary with respect to a given set of target groups (for example, `MALE` and `FEMALE`). Results are saved as `.csv` in `results/`.
 
 Example:
 ```
 VOCABFILE="embeddings/vocab-C3-V20.txt"
-# EMBEDFILE="embeddings/glove-C3-V20-W8-D1-D100-R0.05-E150-S1.npy"
-EMBEDFILE="embeddings/w2v-C3-V20-W8-D100-SG0.npy"
-python -u test_distbyword.py $VOCABFILE $EMBEDFILE
+COOCFILE="embeddings/cooc-C3-V20-W5-D0.npz"
+PMIFILE="embeddings/pmi-C3-V20-W5-D0.npz"
+TARGETA="HE"
+TARGETB="SHE"
+python3 -u scripts/04-biasbyword_cooc.py \
+  --vocab $VOCABFILE --cooc $COOCFILE --pmi $PMIFILE --a $TARGETA --b $TARGETB
 ```
 
-### Differential PMI bias (DPMI)
+#### Word embeddings based biases
 
-Get the value of DPMI bias in corpus for given sets of target and context words (for example, `MALE`, `FEMALE` and `SCIENCE`)
+Get the word2vec and GloVe biases of each word in vocabulary with respect to a given set of target groups (for example, `MALE` and `FEMALE`). Results are saved as `.csv` in `results/`.
 
-**(1)** Set parameters in `test_dpmi.py`
-* `TARGET_A`,`TARGET_B`,`CONTEXT` are names of word lists in `words_lists/`
+Example:
+```
+VOCABFILE="embeddings/vocab-C3-V20.txt"
+TARGETA="HE"
+TARGETB="SHE"
+# word2vec
+EMBEDFILE="embeddings/w2v-C3-V20-W5-D100-SG1.npy"
+python -u scripts/04-biasbyword_we.py \
+  --vocab $VOCABFILE --matrix $EMBEDFILE --a $TARGETA --b $TARGETB
+# GloVe
+EMBEDFILE="embeddings/glove-C3-V20-W5-D1-D100-R0.05-E50-S1.npy"
+python -u scripts/04-biasbyword_we.py \
+  --vocab $VOCABFILE --matrix $EMBEDFILE --a $TARGETA --b $TARGETB
+```
 
-**(2)** Get values of diff. PMI and log-OddsRatio approximation\
-`python test_dpmi.py`
-* Results are saved as `.md` in `results/`
+#### Join results
 
-### DPMI bias by word
+Join all csvs with results of biases by word to make one csv with all the relevant data, which is saved in `results/`.
 
-Get the DPMI bias of each word in vocabulary with respect to a given set of target groups (for example, `MALE` and `FEMALE`)
+Example:
+```
+ID=3
+TARGETA="HE"
+TARGETB="SHE"
+python -u scripts/05-biasbyword_join.py --corpus $ID --a $TARGETA --b $TARGETB
+```
 
-**(1)** Set parameters in `test_dpmibyword.py`
-* `TARGET_A`,`TARGET_B` are names of target word lists in `words_lists/`
 
-**(2)** Get values of DPMI and log-OddsRatio for each word with respect to the two groups of target words\
-`python test_dpmibyword.py`
-* Results are saved as `.md` and `.csv` in `results/`
+<!-- DEJE ACA -->
 
+<!-- PRIMERO PONER:
+- test de new words
+
+creacion de corpus
+Hardcode lists of target words to use inside `scripts/insert_new_words.py`
+
+Example:
+```
+rm nohup.out
+CORPUSFILE="corpora/enwikiselect.txt"
+VOCABFILE="embeddings/vocab-C3-V20.txt"
+for i in 93 94 95 96 97; do
+  SEED=$i
+  OUTFILE="corpora/enwikiselect_newwords_S$SEED.txt"
+  nohup python3 -u scripts/insert_new_words.py \
+    $CORPUSFILE $VOCABFILE $OUTFILE $SEED
+done
+```
+
+DESPUES: agregar corrida de multiple glove / multiple w2v para esto
+DESPUES: armar scripts para multiple DPPMI, PPMI_vec con esto -->
+
+<!-- SEGUNDO PONER:
+- test undersampled/oversampled_corpora
+### Influence of frequency in bias metrics
+Create new perturbed corpora where the ratio of female/male pronouns ("he"/"she") is altered. Assess the impact on the relationship between word frequency and gender bias as measured.
+**1.** Count number of target pronouns in each document of the corpus\
+`python scripts/count_target_words.py <corpus_txt> <word_a> <word_b>`
+Example:
+```
+CORPUS="corpora/enwikiselect.txt"
+A="he"
+B="she"
+python scripts/count_words.py $CORPUS $A $B
+```
+**2.** Create over and undersampled corpora\
+`python -u scripts/make_undersampled_corpora.py <corpus.txt> <vocab.txt> <counts.pkl> <output_dir> <seed>`
+`python -u scripts/make_oversampled_corpora.py <corpus.txt> <vocab.txt> <counts.pkl> <output_dir> <seed>`
+* must set `WORD_A`, `WORD_B`, `RATIOS` in scripts
+Example:
+```
+CORPUSFILE="corpora/enwikiselect.txt"
+VOCABFILE="embeddings/vocab-C3-V1.txt"
+COUNTSFILE="corpora/enwikiselect_counts_he-she.pkl"
+OUTDIR="E:\\tesis-BiasNLP\\corpora"
+SEED=88
+python -u scripts/make_undersampled_corpora.py $CORPUSFILE $VOCABFILE $COUNTSFILE $OUTDIR $SEED
+python -u scripts/make_oversampled_corpora.py $CORPUSFILE $VOCABFILE $COUNTSFILE $OUTDIR $SEED
+```
+**3.** (...)
+rm nohup.out
+chmod +x scripts/01-embed.sh
+chmod +x scripts/03-train_multiple_glove.sh
+nohup scripts/03-train_multiple_glove.sh &
+tail -f nohup.out
+chmod +x scripts/03-train_multiple_w2v.sh
+rm nohup.out
+nohup bash scripts/03-train_multiple_w2v.sh &
+tail -f nohup.out -->
+
+<!-- ULTIMO PONER: scripts que hacen plots
+(una seccion para cada tipo de plot)
+```
+python -u scripts/plots_frequency.py
+```
 ### Stopwords and frequency analysis
 
 Analyse visually the relationship between:
@@ -173,55 +279,54 @@ VOCABFILE="embeddings/vocab-C3-V20.txt"
 EMBEDFILE="embeddings/glove-C3-V20-W8-D1-D100-R0.05-E150-S1.npy"
 # EMBEDFILE="embeddings/w2v-C3-V20-W8-D100-SG0.npy"
 python -u test_frequency.py $VOCABFILE $EMBEDFILE
-```
+``` -->
 
-### Influence of frequency in bias metrics
 
-Create new perturbed corpora where the ratio of female/male pronouns ("he"/"she") is altered. Assess the impact on the relationship between word frequency and gender bias as measured.
 
-**(1)** Count number of target pronouns in each document of the corpus\
-`python scripts/count_target_words.py <corpus_txt> <word_a> <word_b>`
+<!--
+CORPUSID=9
+VOCABFILE="embeddings/vocab-C9-V20.txt"
+CORPUSFILE="corpora/enwikiselect_newwords.txt"
+OUTDIR=""
+SG=1
+SIZE=100
+WINDOW=8
+MINCOUNT=20
+SEED=1
+nohup python3 -u scripts/02-train_word2vec.py \
+  --id $CORPUSID --corpus $CORPUSFILE --vocab $VOCABFILE --outdir $OUTDIR \
+  --size $SIZE --window $WINDOW --count $MINCOUNT --sg $SG --seed $SEED &
 
-Example:
-```
-cd tesis-BiasNLP
-CORPUS="corpora/enwikiselect.txt"
-A="he"
-B="she"
-python scripts/count_words.py $CORPUS $A $B
-```
+VOCABFILE="embeddings/vocab-C9-V20.txt"
+EMBEDFILE="embeddings/vectors-C9-V20-W8-D1-D100-R0.05-E150-S1.bin"
+OUTFILE="embeddings/glove-C9-V20-W8-D1-D100-R0.05-E150-S1.npy"
+FILE_W2V="embeddings/w2v-C9-V20-W8-D100-SG1.npy"
+FILE_GLOVE="embeddings/glove-C9-V20-W8-D1-D100-R0.05-E150-S1.npy"
+# glove matrices
+python3 -u scripts/02-build_glove_matrix.py -v $VOCABFILE -e $EMBEDFILE -o $OUTFILE
+TARGETA="T1"
+TARGETB="T2"
+# w2v
+python3 -u scripts/04-biasbyword_we.py \
+  --vocab $VOCABFILE --matrix $FILE_W2V --a $TARGETA --b $TARGETB
+# glove
+python3 -u scripts/04-biasbyword_we.py \
+  --vocab $VOCABFILE --matrix $FILE_GLOVE --a $TARGETA --b $TARGETB
 
-**(2)** Create over and undersampled corpora\
-`python -u scripts/make_undersampled_corpora.py <corpus.txt> <vocab.txt> <counts.pkl> <output_dir> <seed>`
-`python -u scripts/make_oversampled_corpora.py <corpus.txt> <vocab.txt> <counts.pkl> <output_dir> <seed>`
-* must set `WORD_A`, `WORD_B`, `RATIOS` in scripts
-
-Example:
-```
-cd tesis-BiasNLP
-CORPUSFILE="corpora/enwikiselect.txt"
-VOCABFILE="embeddings/vocab-C3-V1.txt"
-COUNTSFILE="corpora/enwikiselect_counts_he-she.pkl"
-OUTDIR="E:\\tesis-BiasNLP\\corpora"
-SEED=88
-python -u scripts/make_undersampled_corpora.py $CORPUSFILE $VOCABFILE $COUNTSFILE $OUTDIR $SEED
-python -u scripts/make_oversampled_corpora.py $CORPUSFILE $VOCABFILE $COUNTSFILE $OUTDIR $SEED
-```
-
-<!-- **(3)**
-
-chmod +x scripts/01-embed.sh
-chmod +x scripts/train_multiple_glove.sh
-nohup scripts/train_multiple_glove.sh &
-tail -f nohup.out
-
-chmod +x scripts/train_multiple_w2v.sh
-nohup bash scripts/train_multiple_w2v.sh &
-tail -f nohup.out
-
+## cooc
+#python3 -u scripts/04-biasbyword_cooc.py \
+#  --vocab $VOCABFILE --matrix $COOCFILE --a $TARGETA --b $TARGETB
 
 -->
 
+
+### Important references
+- [Garg et al 2018 -- GitHub repo](https://github.com/nikhgarg/EmbeddingDynamicStereotypes)
+- [Brunet et al 2019 -- GitHub repo](https://github.com/mebrunet/understanding-bias)
+
+
+
+<!-- ## Backlog
 
 ### Bias gradient in GloVe
 
@@ -238,7 +343,7 @@ OUTFILE="embeddings/full_vectors-C3-V20-W8-D1-D100-R0.05-E150-S1.pkl"
 python scripts/build_glove_full_vectors.py $VOCABFILE $EMBEDFILE $OUTFILE
 ```
 
-**(2)** Build scipy.sparse co-ocurrence matrix\
+**(2)** Build scipy.sparse co-occurrence matrix\
 `python scripts/02-build_cooc_matrix.py <vocab_file.txt> <cooc_file.bin> <out_file.npz>`
 * builds a `scipy.sparse.csr_matrix` with co-occurrences stored in `.bin` file
 * the `.bin` file should be the same one used to train GloVe
@@ -252,8 +357,33 @@ COOCFILE="embeddings/cooc-C3-V20-W8-D1.bin"
 OUTFILE="embeddings/cooc-C3-V20-W8-D1.npz"
 nohup python3 scripts/02-build_cooc_matrix.py -v $VOCABFILE -c $COOCFILE -o $OUTFILE 1>test.out 2>test.err &
 tail -f test.err
-```
+``` -->
 
-### Important references
-- [Garg et al 2018 -- GitHub repo](https://github.com/nikhgarg/EmbeddingDynamicStereotypes)
-- [Brunet et al 2019 -- GitHub repo](https://github.com/mebrunet/understanding-bias)
+
+
+<!-- ## OLD STUFF
+
+### Relative norm distance (RND) bias
+
+Get the value of RND bias in corpus for given sets of target and context words (for example, `MALE`, `FEMALE` and `SCIENCE`)
+
+**(1)** Set parameters in `test_rnd.py`
+* `TARGET_A`,`TARGET_B`,`CONTEXT` are names of word lists in `words_lists/`
+
+**(2)** Get value of relative norm distance\
+`python test_rnd.py`
+* Results are saved as `.md` in `results/`
+
+### Differential PMI bias (DPMI)
+
+Get the value of DPMI bias in corpus for given sets of target and context words (for example, `MALE`, `FEMALE` and `SCIENCE`)
+
+**(1)** Set parameters in `test_dpmi.py`
+* `TARGET_A`,`TARGET_B`,`CONTEXT` are names of word lists in `words_lists/`
+
+**(2)** Get values of diff. PMI and log-OddsRatio approximation\
+`python test_dpmi.py`
+* Results are saved as `.md` in `results/`
+
+
+ -->
