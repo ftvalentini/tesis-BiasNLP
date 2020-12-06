@@ -38,6 +38,7 @@ cd GloVe && make
 * `CORPUS_ID` is defined according to order in `CORPORA` list in `scripts/corpora_dict`
 
 ```
+rm nohup.out
 chmod +x scripts/01-glove.sh
 nohup scripts/01-glove.sh scripts/glove.config &
 ```
@@ -212,8 +213,9 @@ Train GloVe and word2vec once for each of the five perturbed corpora. GloVe must
 Example:
 ```
 rm nohup.out
+chmod +x scripts/01-glove.sh
 chmod +x scripts/train_multiple_glove.sh
-nohup scripts/train_multiple_glove.sh &
+nohup bash scripts/train_multiple_glove.sh &
 ```
 
 **4.** Hardcode the configuration of word2vec in `scripts/train_multiple_w2v.sh` -- use the same configuration used in [Word2Vec](#word2vec).

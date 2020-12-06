@@ -14,7 +14,8 @@ TARGET_A = "HE"
 TARGET_B = "SHE"
 
 file_results = \
-        f"results/csv/biasbyword_full-C{CORPUS_ID}_{TARGET_A}-{TARGET_B}.csv"
+        f"../results/csv/biasbyword_full-C{CORPUS_ID}_{TARGET_A}-{TARGET_B}.csv"
+        # f"results/csv/biasbyword_full-C{CORPUS_ID}_{TARGET_A}-{TARGET_B}.csv"
 
 
 dat = pd.read_csv(file_results)
@@ -75,19 +76,19 @@ for m in metrics:
     result_name = f"{m}-C{CORPUS_ID}_{TARGET_A}-{TARGET_B}"
     # freq-bias all words
     fig_, ax_ = scatter_plt(dat, x_var='freq', y_var=m)
-    fig_.savefig(f'results/plots/scatter_freq_{result_name}.png', dpi=400)
+    fig_.savefig(f'../results/plots/scatter_freq_{result_name}.png', dpi=400)
     # freq-bias sample+smooth
     fig_, ax_ = scatter_plt(
         dat, x_var='freq', y_var=m, n_sample=20_000, smooth=True, frac=0.075)
-    fig_.savefig(f'results/plots/scatter_smooth_freq_{result_name}.png', dpi=400)
+    fig_.savefig(f'../results/plots/scatter_smooth_freq_{result_name}.png', dpi=400)
     # freq-bias stopwords+smooth
     fig_, ax_ = scatter_plt(
         dat_sw, x_var='freq', y_var=m, smooth=True, frac=0.4)
-    fig_.savefig(f'results/plots/scatter_sw_freq_{result_name}.png', dpi=400)
+    fig_.savefig(f'../results/plots/scatter_sw_freq_{result_name}.png', dpi=400)
     # freq-bias all words boxplot
     fig_, ax_ = boxplots_plt(
                         dat, x_var='freq', y_var=m, bins=limits)
-    fig_.savefig(f'results/plots/boxplots_freq_{result_name}.png', dpi=400)
+    fig_.savefig(f'../results/plots/boxplots_freq_{result_name}.png', dpi=400)
 
 
 
@@ -120,31 +121,4 @@ def pairs_plt(data, n_sample=None, seed=123):
 
 result_name = f"C{CORPUS_ID}_{TARGET_A}-{TARGET_B}"
 fig_, axs_ = pairs_plt(dat, n_sample=20_000)
-fig_.savefig(f'results/plots/pairs_{result_name}.png', dpi=400)
-
-
-
-### "kspere": por kevin she'kspere briggs!!! jaja
-
-# cols = ['word','freq','count_total','count_context_a','count_context_b'
-#     ,'ppmi_a','ppmi_b', 'dppmi', 'log_oddsratio', 'pvalue']
-# dat[cols].sort_values("dppmi", ascending=True).head()
-
-# dat.loc[np.isclose(dat["dppmi"], 0)][['ppmi_a','ppmi_b','log_oddsratio']]
-# dat['log_oddsratio'].value_counts().head()
-# dat.loc[np.isclose(dat["dppmi"], -1.404883)]
-
-# dat.sort_values('order2').head(20)
-# dat.sort_values('order2', ascending=False).head(20)
-# dat.query("word in ('woman')")
-# dat.query("word in ('girl','woman')")
-
-# cols = ['word','freq','count_total','count_context_a','count_context_b','pmi_a','pmi_b']
-# dat.sort_values("log_oddsratio", ascending=True)[cols].head()
-# words = ['touchdowns', 'batted', 'gln', 'barrichello', 'nfc']
-# dat.loc[dat['word'].isin(words)][cols].head()
-
-# import scipy.sparse
-# M = scipy.sparse.load_npz("embeddings/ppmi-C3-V1-W8-D0.npz")
-# M[1,16]
-# M[1,64]
+fig_.savefig(f'../results/plots/pairs_{result_name}.png', dpi=400)

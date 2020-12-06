@@ -1,5 +1,5 @@
 
-IDS=(93 94 95 96 97)
+IDS=(4 5 6 7 8)
 
 # fixed param
 OUTDIR=""

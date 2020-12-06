@@ -53,8 +53,8 @@ def main(vocabfile, binfile, matfile, embedfile):
         pickle.dump(vectors, f)
 
     print("Saving embeddings (W+C) as npy")
-    target_vectors, _, context_vectors, _ = vectors
-    M = target_vectors + context_vectors
+    W, _, U, _ = vectors
+    M = W + U
     np.save(embedfile, M)
 
 
