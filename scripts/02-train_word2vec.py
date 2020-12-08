@@ -67,7 +67,7 @@ def main(corpus_id, corpus_file, vocab_file, outdir, **kwargs_w2v):
     print("saving model...")
     kw = kwargs_w2v
     basename = \
-        f"w2v-C{corpus_id}-V{kw['min_count']}-W{kw['window']}-D{kw['size']}-SG{kw['sg']}"
+        f"w2v-C{corpus_id}-V{kw['min_count']}-W{kw['window']}-D{kw['size']}-SG{kw['sg']}-S{kw['seed']}"
     model_file = str(Path(outdir) / "embeddings" / f"{basename}.model")
     model.save(model_file)
     print("testing vocabulary...")
