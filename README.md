@@ -137,7 +137,7 @@ The lists of target words to be used must be saved in `words_lists/`.
 
 #### Co-occurrence based biases
 
-Compute DPPMI and PPMI_vec biases of each word in vocabulary with respect to a given set of target groups (for example, `MALE` and `FEMALE`). Results are saved as `.csv` in `results/`.
+Compute DPPMI and PPMI_vec biases of each word in vocabulary with respect to a given set of target groups (for example, `HE` and `SHE`). Results are saved as `.csv` in `results/`.
 
 Example:
 ```
@@ -152,18 +152,18 @@ python3 -u scripts/04-biasbyword_cooc.py \
 
 #### Word embeddings based biases
 
-Get the word2vec and GloVe biases of each word in vocabulary with respect to a given set of target groups (for example, `MALE` and `FEMALE`). Results are saved as `.csv` in `results/`.
+Get the word2vec and GloVe biases of each word in vocabulary with respect to a given set of target groups (for example, `HE` and `SHE`). Results are saved as `.csv` in `results/`.
 
 Example:
 ```
 VOCABFILE="embeddings/vocab-C3-V20.txt"
 TARGETA="HE"
 TARGETB="SHE"
-# word2vec
-EMBEDFILE="embeddings/w2v-C3-V20-W5-D100-SG1.npy"
+
+EMBEDFILE="embeddings/w2v-C3-V20-W5-D100-SG1-S1.npy"
 python -u scripts/04-biasbyword_we.py \
   --vocab $VOCABFILE --matrix $EMBEDFILE --a $TARGETA --b $TARGETB
-# GloVe
+
 EMBEDFILE="embeddings/glove-C3-V20-W5-D1-D100-R0.05-E50-S1.npy"
 python -u scripts/04-biasbyword_we.py \
   --vocab $VOCABFILE --matrix $EMBEDFILE --a $TARGETA --b $TARGETB
@@ -208,7 +208,7 @@ Train GloVe and word2vec once for each of the five perturbed corpora. GloVe must
 
 **2.** Hardcode the IDs of the perturbed copora (order in `corpora_dict`) in `scripts/train_multiple_glove.sh` and `scripts/train_multiple_w2v.sh`.
 
-**3.** Train GloVe with the same set-up (`scripts/glove.config` file) used in [GloVe](#glove).
+**3.** Train GloVe with the same set-up (`scripts/glove.config` file) used in [GloVe](#glove) and save GloVe embeddings.
 
 Example:
 ```
@@ -227,11 +227,40 @@ chmod +x scripts/train_multiple_w2v.sh
 nohup bash scripts/train_multiple_w2v.sh &
 ```
 
-<!-- DESPUES: armar scripts para multiple DPPMI, PPMI_vec con esto -->
+#### Create multiple co-occurrence and PMI matrices
+
+**1.** Hardcode the IDs of the perturbed copora (order in `corpora_dict`) in `scripts/train_multiple_cooc.sh`.
+
+**2.** Hardcode the same set-up used in [Co-occurrence and PMI matrices](#co-occurrence-and-pmi-matrices) in `scripts/cooc.config` file in order to build co-occurrence and PMI matrices for each of the perturbed corpora.
+
+Example:
+```
+rm nohup.out
+chmod +x scripts/train_multiple_cooc.sh
+nohup bash scripts/train_multiple_cooc.sh &
+```
+
+#### Compute biases
+
+Compute DPPMI, PPMI_vec, GloVe and word2vec biases of each word of each corpus with respect to the sets of ficticious targete words (T1,T2) and/or other sets. Results are saved as `.csv` in `results/`.
+
+Example:
+```
+rm nohup.out
+TARGET_A="HE"
+TARGET_B="SHE"
+chmod +x scripts/biasbyword_multiple.sh
+nohup bash scripts/biasbyword_multiple.sh $TARGET_A $TARGET_B &
+rm nohup.out
+TARGET_A="T1"
+TARGET_B="T2"
+chmod +x scripts/biasbyword_multiple.sh
+nohup bash scripts/biasbyword_multiple.sh $TARGET_A $TARGET_B &
+```
 
 
 
-<!-- SEGUNDO PONER:
+<!-- FALTA:
 - test undersampled/oversampled_corpora
 ### Influence of frequency in bias metrics
 Create new perturbed corpora where the ratio of female/male pronouns ("he"/"she") is altered. Assess the impact on the relationship between word frequency and gender bias as measured.
