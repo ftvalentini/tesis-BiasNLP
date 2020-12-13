@@ -14,7 +14,7 @@ DIST_GLOVE=1 # distance weighting
 # word2vec
 SG=1 # skipgram
 # cooc
-DIST_COOC = 0
+DIST_COOC=0
 ###
 
 # target words
