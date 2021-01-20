@@ -186,10 +186,10 @@ def cosine_similarities(M, idx_target, idx_context, use_norm=True):
     del M
     # similitud coseno
     productos = M_c.dot(avg_target.T)
-    denominadores = np.linalg.norm(avg_target) * \
-                                        scipy.sparse.linalg.norm(M_c, axis=1)
-    # denominadores = scipy.sparse.linalg.norm(M_c, axis=1)
-    # denominadores *= np.linalg.norm(avg_target)
+    # denominadores = np.linalg.norm(avg_target) * \
+    #                                     scipy.sparse.linalg.norm(M_c, axis=1)
+    denominadores = scipy.sparse.linalg.norm(M_c, axis=1)
+    denominadores *= np.linalg.norm(avg_target)
     rel_sims = productos.ravel()
     if use_norm:
         rel_sims /= denominadores.ravel()
@@ -243,7 +243,7 @@ def order2_byword(M, words_target_a, words_target_b, words_context, str2idx
                                                 if w not in words_target_out])
     idx_c = sorted([str2idx[w] for w in words_context])
     # get bias for each c
-    if n_dim:
+    if (n_dim) and ((n_dim+1) < M.shape[1]):
         M = M[:,:n_dim+1] # +1 porque idx=0 esta vacio
     # max(celda, 0) para usar PPMI -- si se usa cooc no pasa nada
     if only_positive:

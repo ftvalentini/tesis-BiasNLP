@@ -19,6 +19,7 @@ def main(vocab_file, cooc_file, pmi_file, target_a, target_b):
     str2idx, idx2str, str2count = load_vocab(vocab_file)
     cooc_matrix = scipy.sparse.load_npz(cooc_file)
     pmi_matrix = scipy.sparse.load_npz(pmi_file)
+    del idx2str
 
     print("Getting words lists...")
     words_lists = dict()
@@ -29,6 +30,7 @@ def main(vocab_file, cooc_file, pmi_file, target_a, target_b):
     words_b = words_lists[target_b]
     words_context = [w for w, freq in str2count.items() if \
                         w not in words_a + words_b and freq >= WORD_MIN_COUNT]
+    del str2count
 
     print("Computing DPMI bias wrt each context word...")
     res_dpmi = dpmi_byword(
@@ -40,6 +42,7 @@ def main(vocab_file, cooc_file, pmi_file, target_a, target_b):
     outfile = \
         f'results/csv/biasbyword_dppmi-{results_name}_{target_a}-{target_b}.csv'
     res_dpmi.to_csv(outfile, index=False)
+    del res_dpmi
 
     print("Computing order2 bias wrt each context word...")
     n_dim = len(words_a) + len(words_b) + len(words_context)
