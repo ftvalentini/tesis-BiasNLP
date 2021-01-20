@@ -23,6 +23,7 @@ b) En el caso de análisis intertemporales, es probable que un mismo estereotipo
 Hiperparámetros:
 
 - Tamaño de la ventana
+- Ponderación de la co-coocucrrencia según la distancia en la ventana (probablemente tiene impacto menor)
 
 #### Métricas basadas en _embeddings_
 
@@ -89,4 +90,37 @@ b) Otro problema es que las magnitudes de las métricas externas no siempre se p
 
 3d. Medir estereotipo que "combine dimensiones" a lo largo del tiempo con PPMI y Garg. Comparar los resultados entre sí y con métricas externas.
 
-3d. Medir estereotipo que "combine dimensiones" con PPMI y Garg. Evaluar el impacto de los documentos en las métricas. Evaluar el estereotipo "real" de documentos que se detectaron como del alto sesgo negativo y positivo. 
+3d. Medir estereotipo que "combine dimensiones" con PPMI y Garg. Evaluar el impacto de los documentos en las métricas. Evaluar el estereotipo "real" de documentos que se detectaron como del alto sesgo negativo y positivo.
+
+#### Estereotipo por documento
+
+##### PPMI
+
+  - El odds ratio no está definido si alguno de los dos targets no está en el documento
+    - Posible solución:
+      - Si está A y no B: return PPMI(A,C)
+      - Si está B y no A: return -PPMI(B,C)
+      - Si están ambos: return PPMI(A,C) - PPMI(B,C)
+  - Aun si el OR está definido, el valor no refleja el aporte al estereotipo global del corpus (la frecuencia de las palabras puede ser pequeña)
+    - ¿Poner un umbral de frecuencia? ¿Ponderar por frecuencia?
+
+
+
+
+
+    - Dump wiki ingles
+      - subcorpus
+
+    - Experimento 1
+      - Hipotesis: las buenas metricas de bias son insensibles a documentos que no tienen
+      target
+
+      - medir sesgo de género para "todas las palabras" (como table 2 de garg)
+        - medir frecuencia de los terminos con mas sesgo (Hipotesis: garg trae palabras poco frecuentes)
+        (nota: usar cutoff de frecuencia 20 para vocab --> de esta manera los PMI infinitos son "validos")
+        - hipotesis: palabras poco frecuentes con pmi alto --> pero con CI se vería la no significancia
+
+      - sacar documentos irrelevantes (no tienen targets) y evaluar impacto en metricas
+
+    - ver que % de docs no tienen targets (he, she)
+      - si son pocos, undersamplear
